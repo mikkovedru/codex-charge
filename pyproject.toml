@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-charge"
+version = "1.1.0"
+description = "Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "codex-charge contributors" }]
+keywords = ["codex", "openai", "quota", "rate-limit", "automation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+]
+dependencies = []
+
+[project.optional-dependencies]
+windows = ["pywinpty>=2.0.15"]
+tray = ["pystray>=0.19.5", "Pillow>=10.0.0"]
+dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+all = ["codex-charge[windows,tray]"]
+
+[project.urls]
+Homepage = "https://github.com/Autumnpoem/codex-autocontinue"
+Repository = "https://github.com/Autumnpoem/codex-autocontinue"
+Issues = "https://github.com/Autumnpoem/codex-autocontinue/issues"
+
+[project.scripts]
+codex-charge = "codex_charge.cli:main"
+codex-charge-tray = "codex_charge.tray:main"
+codex-charge-configure = "codex_charge.configure:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["codex_charge*"]
+
+[tool.setuptools.package-data]
+codex_charge = ["locales/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

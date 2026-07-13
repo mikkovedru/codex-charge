@@ -1,0 +1,52 @@
+{
+  "app.name": "Codex Charge",
+  "app.status.idle": "空闲",
+  "app.status.running": "运行中",
+  "app.status.waiting": "等待额度恢复",
+
+  "cli.description": "Codex 限额恢复后自动继续",
+  "cli.quota_title": "Codex 额度",
+  "cli.not_found": "找不到 codex 可执行文件。请安装 Codex CLI 或使用 --codex 指定路径。",
+  "cli.running": "运行中",
+  "cli.limit_detected": "检测到限额 ({raw})，来源={source}，将在 {time} 发送 {prompt!r}",
+  "cli.auto_continue_sent": "已自动发送继续指令",
+  "cli.exited_before_continue": "自动继续前 Codex 已退出",
+  "cli.quota_fallback_failed": "quota API 兜底失败: {error}",
+
+  "quota.plan": "Codex 额度 ({plan})",
+  "quota.short": "短期",
+  "quota.long": "长期",
+  "quota.used": "{label}: 已用 {percent:.0f}%（{remaining} 后重置）",
+  "quota.blocked": "已触限：下次重置 {time}（+ 宽限）",
+
+  "configure.welcome": "欢迎使用 codex-charge 配置向导。",
+  "configure.language_prompt": "语言 Language [en/zh]",
+  "configure.mode_prompt": "目标模式 [cli/desktop]（CLI 终端 或 ChatGPT Codex 桌面版）",
+  "configure.goal_prompt": "启用 Goal 模式（首次恢复发 /goal resume）？[Y/n]",
+  "configure.grace_prompt": "恢复后额外等待秒数 [60]",
+  "configure.continue_prompt": "继续文本 [继续]",
+  "configure.saved": "配置已保存到 {path}",
+
+  "mode.cli": "Codex CLI（终端）",
+  "mode.desktop": "ChatGPT Codex 桌面版",
+
+  "watch.polling": "轮询额度（已用 {percent:.0f}%）",
+  "watch.blocked": "额度已用尽，将在 {time} 发送 {prompt!r}",
+  "watch.sent_desktop": "已发送到桌面窗口: {prompt!r}",
+  "watch.window_not_found": "未找到 Codex 桌面窗口。请打开应用或在配置中设置 desktop_window_titles。",
+  "watch.started": "桌面监视已启动",
+
+  "tray.start_goal": "启动 Codex（Goal）",
+  "tray.start_normal": "启动 Codex（普通）",
+  "tray.start_desktop": "启动桌面版监视",
+  "tray.stop": "停止",
+  "tray.show_quota": "查看额度",
+  "tray.autostart": "开机自启",
+  "tray.configure": "设置…",
+  "tray.exit": "退出",
+  "tray.quota_unavailable": "无法读取额度: {error}",
+
+  "help.cli_mode": "用 PTY 包装 Codex CLI，触限后自动继续。",
+  "help.desktop_mode": "监视 quota API，到点后向 ChatGPT Codex 桌面版自动输入。",
+  "help.configure": "交互式配置（语言、模式、默认值）。"
+}

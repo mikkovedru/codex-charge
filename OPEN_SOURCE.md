@@ -1,0 +1,70 @@
+# Open-source release layout
+
+This document describes what ships in the public **MIT** repository and release artifacts.
+
+## Repository (source)
+
+```
+codex-charge/
+├── LICENSE                 # MIT
+├── README.md               # Bilingual docs (EN + 中文, anchor switch)
+├── README_zh.md            # Redirect to README.md#中文
+├── RELEASE.md              # x86_64 release checklist
+├── CONTRIBUTING.md
+├── MANIFEST.in
+├── pyproject.toml          # pip package metadata
+├── codex_charge/           # Main library
+│   ├── cli.py              # CLI entry
+│   ├── configure.py        # First-run: language + mode
+│   ├── wrapper.py          # CLI mode (PTY)
+│   ├── watch.py            # Desktop app mode
+│   ├── desktop_input.py    # Window focus + keystrokes
+│   ├── quota.py            # codex app-server quota API
+│   ├── parser.py           # Terminal limit message parser
+│   ├── i18n.py + locales/  # en / zh
+│   ├── tray.py             # System tray (Win + Linux)
+│   ├── pty_win.py          # Windows PTY (pywinpty)
+│   ├── pty_unix.py         # Linux PTY
+│   └── config.py           # ~/.codex-charge/config.json
+├── scripts/
+│   ├── build_windows.ps1   # x86_64 Windows exe
+│   ├── build_linux.sh      # x86_64 Linux binaries
+│   └── fake_codex.py       # E2E test helper
+├── tests/
+└── .github/workflows/ci.yml
+```
+
+**Not committed** (see `.gitignore`): `dist/`, `build/`, `*.egg-info/`, `.pytest_cache/`.
+
+## What users install
+
+| Channel | Audience | Command |
+|---------|----------|---------|
+| **PyPI** | Developers | `pip install "codex-charge[all]"` then `codex-charge configure` |
+| **GitHub Release** | End users without Python | Download platform zip, run `codex-charge-tray` |
+| **From source** | Contributors | `pip install -e ".[all,dev]"` |
+
+## Release binaries (x86_64 only)
+
+| Platform | Files |
+|----------|-------|
+| Windows | `codex-charge.exe`, `codex-charge-tray.exe` |
+| Ubuntu | `codex-charge`, `codex-charge-tray` |
+
+Both binaries in a pair must live in the **same folder**.
+
+## Modes
+
+| Mode | Target | How |
+|------|--------|-----|
+| `cli` | Codex CLI in terminal | PTY wrapper — most reliable |
+| `desktop` | ChatGPT Codex desktop app | Poll quota API → type into window |
+
+Desktop mode uses the same ChatGPT account / `codex app-server` auth as CLI. It does **not** hook into the Electron app internals.
+
+## Before publishing
+
+1. Repo URL is set to `https://github.com/Autumnpoem/codex-autocontinue`.
+2. Run `pytest tests/ -v` on Windows and Ubuntu.
+3. Build x86_64 artifacts per `RELEASE.md`.
+4. Tag e.g. `v1.1.0` and attach platform zips.

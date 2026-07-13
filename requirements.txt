@@ -1,0 +1,16 @@
+# Core: no deps (POSIX PTY uses stdlib)
+# Platform extras:
+#   pip install 'codex-charge[windows]'   # Windows CLI PTY
+#   pip install 'codex-charge[tray]'      # system tray
+#   pip install 'codex-charge[all]'       # Windows full install
+
+[windows]
+pywinpty>=2.0.15
+
+[tray]
+pystray>=0.19.5
+Pillow>=10.0.0
+
+[dev]
+pytest>=8.0
+pyinstaller>=6.0
