@@ -4,12 +4,25 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-_LOCALE_DIR = Path(__file__).resolve().parent / "locales"
 _current_locale = "en"
+
+
+def _locale_dir() -> Path:
+    """Resolve locales/ in dev installs and PyInstaller one-file bundles."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        base = Path(sys._MEIPASS)
+        for candidate in (
+            base / "codex_charge" / "locales",
+            base / "locales",
+        ):
+            if candidate.is_dir():
+                return candidate
+    return Path(__file__).resolve().parent / "locales"
 
 
 def normalize_locale(value: str | None) -> str:
@@ -40,9 +53,9 @@ def init_locale_from_env() -> str:
 
 @lru_cache(maxsize=8)
 def _load_messages(locale: str) -> dict[str, str]:
-    path = _LOCALE_DIR / f"{locale}.json"
+    path = _locale_dir() / f"{locale}.json"
     if not path.exists():
-        path = _LOCALE_DIR / "en.json"
+        path = _locale_dir() / "en.json"
     return json.loads(path.read_text(encoding="utf-8"))
 
 

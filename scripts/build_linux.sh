@@ -10,16 +10,25 @@ if [[ "$arch" != "x86_64" ]]; then
   exit 1
 fi
 
+LOCALES="$ROOT/codex_charge/locales"
+COMMON=(
+  --noconfirm --onefile
+  --paths "$ROOT"
+  --collect-submodules codex_charge
+  --collect-data codex_charge
+  --add-data "$LOCALES:codex_charge/locales"
+)
+
 echo "Building codex-charge CLI..."
-pyinstaller --noconfirm --onefile --console \
+pyinstaller "${COMMON[@]}" --console \
   --name codex-charge \
-  codex_charge/cli.py
+  scripts/entry_cli.py
 
 echo "Building codex-charge tray..."
-pyinstaller --noconfirm --onefile --windowed \
+pyinstaller "${COMMON[@]}" --windowed \
   --name codex-charge-tray \
   --collect-all pystray \
-  codex_charge/tray.py
+  scripts/entry_tray.py
 
 echo ""
 echo "Output:"

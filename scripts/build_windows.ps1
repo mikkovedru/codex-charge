@@ -9,18 +9,27 @@ if ([Environment]::Is64BitOperatingSystem -ne $true) {
     Write-Error "Release builds target x86_64 Windows only."
 }
 
+$Locales = Join-Path $Root "codex_charge\locales"
+$CommonArgs = @(
+    "--noconfirm", "--onefile",
+    "--paths", $Root,
+    "--collect-submodules", "codex_charge",
+    "--collect-data", "codex_charge",
+    "--add-data", "$Locales;codex_charge\locales"
+)
+
 Write-Host "Building codex-charge CLI..."
-pyinstaller --noconfirm --onefile --console `
+pyinstaller @CommonArgs --console `
   --name codex-charge `
   --collect-all winpty `
-  codex_charge/cli.py
+  scripts/entry_cli.py
 
 Write-Host "Building codex-charge tray app..."
-pyinstaller --noconfirm --onefile --windowed `
+pyinstaller @CommonArgs --windowed `
   --name codex-charge-tray `
   --collect-all winpty `
   --collect-all pystray `
-  codex_charge/tray.py
+  scripts/entry_tray.py
 
 Write-Host ""
 Write-Host "Output:"
