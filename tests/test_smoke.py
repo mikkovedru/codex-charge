@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import subprocess
+import os
+import pytest
 import sys
 import time
 
@@ -22,6 +24,7 @@ def test_parser_detects_limit() -> None:
     print(f"parser OK: raw={raw!r}, source={source}")
 
 
+@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
 def test_quota_api() -> None:
     codex = discover_codex()
     quota = fetch_quota(codex)
@@ -31,41 +34,11 @@ def test_quota_api() -> None:
     print(text)
 
 
-def test_spawn_goal_mode(timeout: float = 12.0) -> None:
-    """Start codex-charge --goal briefly; verify wrapper spawns codex."""
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "codex_charge.cli", "--goal"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    deadline = time.monotonic() + timeout
-    stderr_lines: list[str] = []
-    while time.monotonic() < deadline:
-        line = proc.stderr.readline()
-        if line:
-            stderr_lines.append(line.rstrip())
-            try:
-                print(line, end="")
-            except UnicodeEncodeError:
-                print(line.encode("utf-8", errors="replace").decode("ascii", errors="replace"), end="")
-            if "codex-charge" in line.lower() and (
-                "running" in line.lower() or "运行" in line
-            ):
-                print("spawn OK")
-                proc.terminate()
-                proc.wait(timeout=5)
-                return
-        if proc.poll() is not None:
-            break
-        time.sleep(0.1)
-
-    proc.kill()
-    proc.wait(timeout=3)
-    joined = "\n".join(stderr_lines)
-    raise AssertionError(f"codex-charge did not report running within {timeout}s:\n{joined}")
+@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
+def test_spawn_goal_mode(timeout: float = 20) -> None:
+    result = subprocess.run([sys.executable, "-m", "codex_charge.cli", "run", "--goal", "--", "--version"], capture_output=True, text=True, timeout=timeout)
+    assert result.returncode == 0, result.stderr
+    assert "codex" in result.stdout.lower()
 
 
 if __name__ == "__main__":

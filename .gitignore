@@ -31,3 +31,4 @@ Thumbs.db
 *.exe
 *.log
 *.spec
+!scripts/tray_linux.spec

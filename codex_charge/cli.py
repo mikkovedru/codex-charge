@@ -19,7 +19,10 @@ def _build_run_parser(prog: str = "codex-charge") -> argparse.ArgumentParser:
         description=t("cli.description"),
     )
     parser.add_argument("--codex", metavar="PATH", help="Path to codex executable")
-    parser.add_argument("--goal", action="store_true", help="First auto-continue sends /goal resume")
+    goal = parser.add_mutually_exclusive_group()
+    goal.add_argument("--goal", dest="goal_mode", action="store_true", help="First auto-continue sends /goal resume")
+    goal.add_argument("--no-goal", dest="goal_mode", action="store_false", help="Use the normal continue prompt")
+    parser.set_defaults(goal_mode=None)
     parser.add_argument(
         "--continue",
         dest="continue_prompt",
@@ -118,7 +121,7 @@ def _cmd_run(argv: list[str]) -> int:
         codex_path=ns.codex or user.codex_path,
         codex_args=_normalize_codex_args(ns.codex_args) or user.codex_args,
         continue_prompt=ns.continue_prompt or user.continue_prompt,
-        goal_mode=ns.goal or user.goal_mode,
+        goal_mode=user.goal_mode if ns.goal_mode is None else ns.goal_mode,
         grace_seconds=ns.grace if ns.grace is not None else user.grace_seconds,
         enter_presses=ns.enter_presses,
     )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import subprocess
 import sys
 import threading
@@ -10,15 +11,19 @@ from pathlib import Path
 
 from .autostart import is_autostart_enabled, sync_autostart
 from .config import AppConfig, config_dir
-from .configure import run_configure
 from .i18n import t
 from .pty_backend import StopEvent
 from .quota import discover_codex, fetch_quota, format_quota
 from .watch import WatchConfig, run_desktop_watch
 
+from .tray_backend import prepare_backend, icon_class
+from .tray_icon import make_icon, IDLE_COLOR, RUNNING_COLOR
+
+prepare_backend()
+
 try:
     import pystray
-    from PIL import Image, ImageDraw
+    from PIL import Image
 except ImportError as exc:  # pragma: no cover
     raise SystemExit("Tray app requires: pip install 'codex-charge[tray]'") from exc
 
@@ -34,13 +39,7 @@ def _setup_logging() -> None:
     )
 
 
-def _make_icon(color: str) -> Image.Image:
-    image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.ellipse((8, 8, 56, 56), fill=color)
-    draw.rectangle((28, 20, 36, 34), fill="white")
-    draw.polygon([(24, 34), (40, 34), (32, 48)], fill="white")
-    return image
+_make_icon = make_icon
 
 
 def _resolve_cli_exe() -> list[str]:
@@ -49,7 +48,18 @@ def _resolve_cli_exe() -> list[str]:
         cli = Path(sys.executable).with_name(name)
         if cli.exists():
             return [str(cli)]
+        raise FileNotFoundError(f"Missing companion CLI executable: {cli}")
     return [sys.executable, "-m", "codex_charge.cli"]
+
+
+def _console_command(args):
+    if sys.platform == "win32":
+        return args
+    for name, flags in (("x-terminal-emulator", ["-e"]), ("gnome-terminal", ["--wait", "--"]), ("konsole", ["-e"]), ("xterm", ["-e"])):
+        path = shutil.which(name)
+        if path:
+            return [path, *flags, *args]
+    raise FileNotFoundError("Install a terminal emulator to open Codex or Settings")
 
 
 class TrayApp:
@@ -65,7 +75,7 @@ class TrayApp:
     def _set_status(self, running: bool) -> None:
         if self._icon is None:
             return
-        self._icon.icon = _make_icon("#22c55e" if running else "#6b7280")
+        self._icon.icon = _make_icon(RUNNING_COLOR if running else IDLE_COLOR)
         title = t("app.status.running") if running else t("app.status.idle")
         self._icon.title = f"{t('app.name')} - {title}"
 
@@ -93,8 +103,7 @@ class TrayApp:
             return
 
         args = [*_resolve_cli_exe(), "run"]
-        if goal:
-            args.append("--goal")
+        args.append("--goal" if goal else "--no-goal")
         if self.config.grace_seconds != 60:
             args.extend(["--grace", str(self.config.grace_seconds)])
         if self.config.continue_prompt != "继续":
@@ -106,7 +115,7 @@ class TrayApp:
 
         creationflags = CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
         with self._lock:
-            self._proc = subprocess.Popen(args, creationflags=creationflags)
+            self._proc = subprocess.Popen(_console_command(args), creationflags=creationflags)
         self._set_status(True)
         threading.Thread(target=self._watch_process, daemon=True).start()
 
@@ -164,7 +173,8 @@ class TrayApp:
 
     def open_configure(self, _icon=None, _item=None) -> None:
         def worker() -> None:
-            run_configure()
+            flags = CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
+            subprocess.run(_console_command([*_resolve_cli_exe(), "configure"]), creationflags=flags, check=True)
             self.config = AppConfig.load()
             self.config.apply_locale()
             if self._icon is not None:
@@ -176,9 +186,9 @@ class TrayApp:
     def toggle_autostart(self, _icon=None, item=None) -> None:
         self.config.autostart = not self.config.autostart
         sync_autostart(self.config.autostart)
-        if item is not None:
-            item.checked = self.config.autostart
         self.config.save()
+        if self._icon is not None:
+            self._icon.update_menu()
 
     def exit_app(self, icon: pystray.Icon, _item=None) -> None:
         self.stop_service()
@@ -222,13 +232,13 @@ class TrayApp:
         _setup_logging()
         if self.config.autostart and not is_autostart_enabled():
             sync_autostart(True)
-        self._icon = pystray.Icon(
+        self._icon = icon_class(pystray.Icon)(
             "codex-charge",
-            _make_icon("#6b7280"),
+            _make_icon(IDLE_COLOR),
             t("app.name"),
             menu=self._build_menu(),
         )
-        _log.info("tray started locale=%s mode=%s", self.config.language, self.config.mode)
+        _log.info("tray started locale=%s mode=%s backend=%s", self.config.language, self.config.mode, type(self._icon).__name__)
         self._icon.run()
 
 

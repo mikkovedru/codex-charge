@@ -3,6 +3,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+PYTHON="${PYTHON:-python3}"
+"$PYTHON" -c 'import gi; gi.require_version("Gtk", "3.0"); gi.require_version("XApp", "1.0"); gi.require_foreign("cairo")' || { echo "Install python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 gir1.2-xapp-1.0 and use a system-site-packages virtualenv." >&2; exit 1; }
 
 arch="$(uname -m)"
 if [[ "$arch" != "x86_64" ]]; then
@@ -14,21 +16,17 @@ LOCALES="$ROOT/codex_charge/locales"
 COMMON=(
   --noconfirm --onefile
   --paths "$ROOT"
-  --collect-submodules codex_charge
   --collect-data codex_charge
   --add-data "$LOCALES:codex_charge/locales"
 )
 
 echo "Building codex-charge CLI..."
-pyinstaller "${COMMON[@]}" --console \
+"$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
   --name codex-charge \
   scripts/entry_cli.py
 
 echo "Building codex-charge tray..."
-pyinstaller "${COMMON[@]}" --windowed \
-  --name codex-charge-tray \
-  --collect-all pystray \
-  scripts/entry_tray.py
+"$PYTHON" -m PyInstaller --noconfirm scripts/tray_linux.spec
 
 echo ""
 echo "Output:"

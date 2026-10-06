@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
@@ -15,7 +16,7 @@ Language = Literal["en", "zh"]
 
 
 def config_dir() -> Path:
-    root = Path.home() / ".codex-charge"
+    root = Path(os.environ["CODEX_CHARGE_CONFIG_DIR"]).expanduser() if os.environ.get("CODEX_CHARGE_CONFIG_DIR") else Path.home() / ".codex-charge"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
