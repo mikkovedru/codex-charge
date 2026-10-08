@@ -82,7 +82,7 @@ def test_live_status_overrides_unloaded_metadata(monkeypatch, tmp_path, snapshot
     one, two = inventory.targets
     assert one.status == "Open in desktop"
     assert one.task_status == ("Unavailable" if snapshot_error else "Running")
-    assert one.goal_status == ("Usage limited" if snapshot_error or cached_goal else "Paused")
+    assert one.goal_status == "Usage limited"
     assert two.task_status == "Not loaded" and two.goal_status == "No goal"
     assert bool(inventory.warnings) == snapshot_error
 

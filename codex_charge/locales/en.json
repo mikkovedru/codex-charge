@@ -22,7 +22,7 @@
   "configure.welcome": "Welcome to codex-charge setup.",
   "configure.language_prompt": "Language / 语言 [en/zh]",
   "configure.mode_prompt": "Target [cli/desktop] (CLI terminal or ChatGPT Codex desktop app)",
-  "configure.goal_prompt": "Enable Goal mode (first resume sends /goal resume)? [Y/n]",
+  "configure.goal_prompt": "Enable goal recovery (desktop: native quota-goal recovery; CLI: first /goal resume)? [Y/n]",
   "configure.grace_prompt": "Grace seconds after reset [60]",
   "configure.continue_prompt": "Continue text / 继续文本 [继续]",
   "configure.saved": "Configuration saved to {path}",

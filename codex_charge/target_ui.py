@@ -103,7 +103,8 @@ class TargetPicker(Gtk.Window):
         self.signal = Gtk.Entry(text=self.config.continue_prompt)
         prompt.pack_start(self.signal, True, True, 0)
         box.pack_start(prompt, False, False, 0)
-        self.goal = Gtk.CheckButton(label="First quota-reset signal: /goal resume")
+        self.goal = Gtk.CheckButton(label="Resume quota-stopped goals when quota recovers")
+        self.goal.set_tooltip_text("Automatic recovery for chat-ID targets: reactivate usage-limited goals through Codex's native API, verify the goal, then send your Signal text. Paused, blocked, complete, budget-limited, and already-running goals are left alone. No-goal chats receive Signal text. Window targets require this option to be off. Also recovers selected usage-limited goals when the watch starts after quota has returned. Send signal now always sends Signal text.")
         self.goal.set_active(self.config.goal_mode)
         self.signal.connect("changed", lambda _: self._summary())
         self.goal.connect("toggled", lambda _: self._summary())
@@ -165,7 +166,9 @@ class TargetPicker(Gtk.Window):
         return self._signature(self.selected.values(), self.signal.get_text(), self.goal.get_active()) != self.saved_signature
 
     def _summary(self):
-        self.summary.set_text(f"{len(self.selected)} target(s) selected. Chat signals go to those IDs; window signals go to their current chat.")
+        detail = " Native goal recovery requires chat-ID targets; turn it off to use window recipients." if self.goal.get_active() and any(t.kind != "thread" for t in self.selected.values()) else ""
+        self.summary.set_text(f"{len(self.selected)} target(s) selected. Chat signals go to those IDs; window signals go to their current chat." + detail)
+        self.summary.set_line_wrap(True)
         dirty = self.dirty()
         self.save_state.set_markup("<b>Unsaved changes — click Save selection.</b>" if dirty else "<b>Saved — selection and signal match your settings.</b>")
         self._render_runtime()
@@ -248,9 +251,10 @@ class TargetPicker(Gtk.Window):
                 self.status.set_text("Select and save at least one target before starting Desktop watch.")
                 return
             command = "start-watch"
+        goal_recovery = self.goal.get_active()
         def control():
             try:
-                tray_control.request(timeout=1)
+                live = tray_control.request(timeout=1)
             except OSError:
                 if command != "start-watch":
                     raise
@@ -259,12 +263,14 @@ class TargetPicker(Gtk.Window):
                 deadline = time.monotonic() + 10
                 while True:
                     try:
-                        tray_control.request(timeout=1)
+                        live = tray_control.request(timeout=1)
                         break
                     except OSError:
                         if time.monotonic() >= deadline:
                             raise RuntimeError("Tray did not start; check the tray log")
                         time.sleep(.2)
+            if command == "start-watch" and goal_recovery and live.get("native_goal_recovery") is not True:
+                raise RuntimeError("Restart the tray to use native goal recovery; the running tray is an older version.")
             return tray_control.request(command)
         def show(value):
             self.runtime = value
@@ -425,6 +431,9 @@ class TargetPicker(Gtk.Window):
             self.status.set_text(str(exc))
 
     def save(self, *_):
+        if self.goal.get_active() and any(t.kind != "thread" for t in self.selected.values()):
+            self.status.set_text("Native goal recovery needs chat-ID recipients. Select chats or turn goal recovery off to save window recipients.")
+            return
         if not self.signal.get_text().strip():
             self.status.set_text("Enter a signal before saving.")
             return

@@ -335,6 +335,16 @@ def discover_targets():
                             break
             except Exception as exc:
                 inventory.warnings.append(f"Desktop routing: {exc}")
+        # Native goal control from another connection updates shared persisted
+        # state without notifying the desktop's cached goal immediately. Read
+        # again after snapshots so that cache cannot hide the newer native state.
+        try:
+            fresh_goals = _saved_goals(home)
+            if fresh_goals is not None:
+                targets = [replace(target, goal_status=goal_status(fresh_goals[target.id]))
+                           if target.id in fresh_goals else target for target in targets]
+        except (OSError, sqlite3.Error) as exc:
+            inventory.warnings.append(f"Latest goal status unavailable: {exc}")
         inventory.targets.extend(targets)
         if records and not ipc:
             inventory.warnings.append(f"Desktop routing unavailable for {home}; saved chats can be opened using their links.")

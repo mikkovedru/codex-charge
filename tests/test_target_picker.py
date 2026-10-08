@@ -102,6 +102,16 @@ def check():
         assert window.dirty()
         window.signal.set_text("Continue")
         assert not window.dirty()
+        window.goal.set_active(True)
+        window.save()
+        idle()
+        window.toggle_watch()
+        idle()
+        assert "Restart the tray" in window.status.get_text()
+        assert "start-watch" not in commands
+        window.goal.set_active(False)
+        window.save()
+        idle()
         # A failed automatic refresh must not show the last statuses as live.
         target_ui.discover_targets = lambda: (_ for _ in ()).throw(RuntimeError("disconnected"))
         window.refresh_statuses()

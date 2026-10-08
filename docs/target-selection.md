@@ -80,10 +80,11 @@ it becomes incompatible. Only status fields are retained; conversation contents
 and goal objectives are discarded.
 
 Goal status reports **Active**, **Paused**, **Blocked**, **Usage limited**,
-**Budget limited**, **Complete**, or **No goal**. The desktop's current goal takes
-precedence; a read-only, schema-checked `goals_*.sqlite` query supplies persisted
-status for saved chats. Cached completed goals are shown when no newer
-persisted goal exists. A missing or unsupported source
+**Budget limited**, **Complete**, or **No goal**. A read-only, schema-checked
+`goals_*.sqlite` query supplies persisted status for saved chats and is read again
+after live snapshots. This keeps an older desktop cache from hiding native goal
+updates made through another connection. Cached completed goals are shown when
+no newer persisted goal exists. A missing or unsupported source
 is **Unavailable**, rather than an inferred idle task or absent goal. Window
 recipients show **Unavailable** because they do not identify a fixed chat.
 Disconnected saved selections remain listed with unavailable statuses.
@@ -132,8 +133,36 @@ has been replaced; users must choose recipients once.
 For a chat, discover its owner and route the versioned request directly to that
 client. If a saved chat has no owner, open its canonical deep link and wait for an
 owner before sending. No model, permission or workspace changes are requested.
-Signals are text input; this path does not emulate the composer's slash-command
-UI handlers. `/goal resume` is delivered as text to the selected chat.
+Ordinary signals are text input; this path does not emulate the composer's
+slash-command UI handlers. Native goal recovery is a separate operation:
+
+When **Resume quota-stopped goals when quota recovers** is enabled, each recovery
+reads the selected chat's current goal through the existing, same-user Codex
+daemon for that profile. Native `thread/goal/get` and `thread/goal/set` share the
+persisted goal with the desktop even when the daemon has not loaded that chat.
+The adapter never starts a server, loads a second copy of the chat, replaces an
+objective, resets accounting, or overrides a budget.
+
+A **usageLimited** goal is rechecked after desktop owner discovery, then activated
+with `thread/goal/set {threadId, status: "active"}`. The response and a fresh native
+read must confirm the same goal, budget and usage history. The configured Signal
+text then starts a turn through that chat's desktop owner; another goal read
+confirms the resulting state. No `/goal resume` text is injected. A completed
+goal may legitimately finish during continuation; unverified state after an
+accepted turn is reported as uncertain and is not automatically retried.
+
+**Paused**, **blocked**, **budgetLimited**, and **complete** goals are skipped.
+Running tasks, including those waiting for approval or user input, are skipped.
+Chats with no goal and idle active goals use the normal Signal text. A goal that
+changes while discovery is in progress is left alone. A missing native control
+source fails visibly instead of assuming there is no goal or sending a slash
+command. Window recipients cannot identify a goal and require goal recovery to
+be off; manual **Send signal now** always sends the Signal text field.
+
+This applies on every quota recovery, replacing the old once-per-watch first
+message behavior. Starting a watch after quota has recovered also finds selected
+usage-limited goals and recovers only those, after the grace period. Other chats
+receive no startup signal. Failed startup checks retry while the watch runs.
 
 A window recipient means the currently displayed chat and focused input in that
 window. Keep its composer focused before using window delivery; chat ID targets
@@ -149,8 +178,10 @@ remaining rate-limit flag postpone delivery.
 The watcher tracks accepted recipients separately for each reset. Confirmed
 failures retry every 30 seconds while quota is available; this pending delivery
 survives the quota returning to normal. Confirmed successes are not resent within
-that reset. Goal resume remains pending for a recipient until delivery succeeds. A timeout or
-connection loss after submission is **uncertain**, so it is not automatically
+that reset.
+Native recovery rechecks the current goal on confirmed retries, so an already
+activated goal is not activated again. A timeout or connection loss after native
+activation or turn submission is **uncertain**, so it is not automatically
 retried in the same reset; check that chat before retrying manually. Individual
 results appear in logs and in the selector's status tooltip.
 
@@ -160,6 +191,11 @@ Regression tests cover duplicate titles and profiles, pagination, read-only
 metadata fallback, fragmented IPC frames, Unicode, pinned owner routing, partial
 fan-out failure, stale windows, focus changes, malformed turn acknowledgments,
 overlapping quota windows, stale snapshots, quota recovery, and reset retry
-behavior. Live checks
+behavior. Native goal tests cover profile identity, preservation of budgets and
+accounting, changed goals, startup recovery, retries, and uncertain activation.
+An opt-in offline integration test uses two real installed Codex backends sharing
+a temporary profile: native activation is visible to the original backend while
+the control backend remains unloaded. Its model provider points only to a closed
+local port; existing chats and external model services are never used. Live checks
 exercise discovery and GTK selection/search/save using isolated configuration.
 No test signal is sent to existing user chats.

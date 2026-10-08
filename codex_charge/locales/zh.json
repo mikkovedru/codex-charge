@@ -22,7 +22,7 @@
   "configure.welcome": "欢迎使用 codex-charge 配置向导。",
   "configure.language_prompt": "语言 Language [en/zh]",
   "configure.mode_prompt": "目标模式 [cli/desktop]（CLI 终端 或 ChatGPT Codex 桌面版）",
-  "configure.goal_prompt": "启用 Goal 模式（首次恢复发 /goal resume）？[Y/n]",
+  "configure.goal_prompt": "启用目标恢复（桌面：原生恢复额度受限目标；CLI：首次发送 /goal resume）？[Y/n]",
   "configure.grace_prompt": "恢复后额外等待秒数 [60]",
   "configure.continue_prompt": "继续文本 [继续]",
   "configure.saved": "配置已保存到 {path}",

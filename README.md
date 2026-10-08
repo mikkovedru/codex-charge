@@ -48,7 +48,7 @@ codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 
 Auto-continue **Codex CLI** and the **ChatGPT Codex desktop app** after 5-hour / 7-day usage limits reset.
 
-When your quota is exhausted, codex-charge waits until the official reset time (+ 60s grace), then automatically sends `继续` or `/goal resume` so long-running tasks do not need babysitting.
+When quota is exhausted, codex-charge waits for recovery and the grace period, then continues selected tasks. Desktop goal recovery uses verified native goal activation followed by Signal text; CLI Goal mode enters `/goal resume` in the terminal on its first recovery.
 
 ### Features
 
@@ -127,7 +127,7 @@ Config file: `~/.codex-charge/config.json`
 |---------|-------------|
 | `language` | `en` or `zh` |
 | `mode` | `cli` or `desktop` |
-| `goal_mode` | First resume sends `/goal resume` |
+| `goal_mode` | Desktop: verified native recovery of quota-stopped goals; CLI: first `/goal resume` |
 | `grace_seconds` | Extra wait after reset (default `60`) |
 | `continue_prompt` | Text to send (default `继续`) |
 | `desktop_targets` | Saved chat/window recipient identities |
@@ -354,7 +354,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## 中文
 
-在 **Codex CLI** 或 **ChatGPT Codex 桌面版** 触达 5 小时 / 7 天限额后，自动等待额度恢复并发送 `继续` 或 `/goal resume`，长任务不用人工守着。
+在 **Codex CLI** 或 **ChatGPT Codex 桌面版** 触达 5 小时 / 7 天限额后，自动等待额度恢复。桌面目标恢复通过原生 API 激活额度受限目标并发送继续文本；CLI 目标模式首次在终端提交 `/goal resume`。
 
 ### 特性
 
@@ -433,7 +433,7 @@ codex-charge configure --lang zh --mode desktop --goal
 |--------|------|
 | `language` | `en` 或 `zh` |
 | `mode` | `cli` 或 `desktop` |
-| `goal_mode` | 首次恢复发 `/goal resume` |
+| `goal_mode` | 桌面：原生恢复额度受限目标；CLI：首次发送 `/goal resume` |
 | `grace_seconds` | 恢复后额外等待秒数（默认 `60`） |
 | `continue_prompt` | 自动发送文本（默认 `继续`） |
 | `desktop_window_titles` | 桌面版窗口标题匹配 |
@@ -705,6 +705,12 @@ The GUI shows saved/unsaved selection, task and goal status refreshed every 15 s
 live quota usage and reset countdowns,
 startup registration and launch origin, and the actual Desktop watch state.
 Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
+Enable **Resume quota-stopped goals when quota recovers** for verified native
+recovery of selected Linux chat IDs. Each recovery preserves the existing goal
+and accounting, skips paused/completed/blocked/budget-limited goals and busy
+tasks, and sends Signal text after activation. Window recipients require this
+option to be off. **Send signal now** always sends Signal text. Starting watch
+after quota has recovered also recovers selected usage-limited goals.
 Saved changes to an active watch take effect when it is stopped and started.
 
 Choose targets before starting desktop watch. Local saved chats are included;
