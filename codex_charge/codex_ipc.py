@@ -112,6 +112,8 @@ class DesktopIPC:
         if response.get("handledByClientId") != owner:
             raise DeliveryUncertain("Codex response came from a different chat owner; check the chat before retrying")
         result = response.get("result")
-        if not isinstance(result, dict) or not isinstance(result.get("result"), dict) or "turn" not in result["result"]:
+        inner = result.get("result") if isinstance(result, dict) else None
+        turn = inner.get("turn") if isinstance(inner, dict) else None
+        if not isinstance(turn, dict) or not isinstance(turn.get("id"), str) or not turn["id"]:
             raise DeliveryUncertain("Desktop did not acknowledge a turn; check the chat before retrying")
         return result

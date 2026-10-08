@@ -83,9 +83,15 @@ avoid this focus dependency. Window delivery validates the XID/PID and foregroun
 window before typing and submitting. Closing a window or reusing an ID causes a
 failure. Desktop settings and conversation drafts are not cleared.
 
+The watcher waits for every exhausted quota window (including the weekly
+window), keeps the grace period, then checks fresh quota before sending. A passed
+reset timestamp alone does not trigger delivery. Failed quota reads and a
+remaining rate-limit flag postpone delivery.
+
 The watcher tracks accepted recipients separately for each reset. Confirmed
-failures can retry; confirmed successes are not resent within that reset. Goal
-resume remains pending for a recipient until delivery succeeds. A timeout or
+failures retry every 30 seconds while quota is available; this pending delivery
+survives the quota returning to normal. Confirmed successes are not resent within
+that reset. Goal resume remains pending for a recipient until delivery succeeds. A timeout or
 connection loss after submission is **uncertain**, so it is not automatically
 retried in the same reset; check that chat before retrying manually. Individual
 results appear in logs and in the selector's status tooltip.
@@ -94,6 +100,8 @@ results appear in logs and in the selector's status tooltip.
 
 Regression tests cover duplicate titles and profiles, pagination, read-only
 metadata fallback, fragmented IPC frames, Unicode, pinned owner routing, partial
-fan-out failure, stale windows, focus changes and reset retry behavior. Live checks
+fan-out failure, stale windows, focus changes, malformed turn acknowledgments,
+overlapping quota windows, stale snapshots, quota recovery, and reset retry
+behavior. Live checks
 exercise discovery and GTK selection/search/save using isolated configuration.
 No test signal is sent to existing user chats.

@@ -152,10 +152,14 @@ def test_partial_reset_retries_only_failed_target(monkeypatch):
         def exhausted_window(self): return exhausted
     class Stop:
         attempts = 0
-        def is_set(self): return self.attempts >= 3
+        def is_set(self): return self.attempts >= 4
         def wait(self, seconds): self.attempts += 1
     monkeypatch.setattr(watch, "discover_codex", lambda _: "codex")
-    monkeypatch.setattr(watch, "fetch_quota", lambda _: Quota())
+    snapshots = iter([Quota()])
+    class Available:
+        primary = replace(exhausted, used_percent=0, resets_at=9999999999)
+        secondary = None
+    monkeypatch.setattr(watch, "fetch_quota", lambda _: next(snapshots, Available()))
     calls = []
     def send(targets, text, **kwargs):
         target = targets[0]
@@ -194,10 +198,14 @@ def test_uncertain_watch_delivery_is_not_repeated(monkeypatch):
         def exhausted_window(self): return exhausted
     class Stop:
         attempts = 0
-        def is_set(self): return self.attempts >= 3
+        def is_set(self): return self.attempts >= 4
         def wait(self, seconds): self.attempts += 1
     monkeypatch.setattr(watch, "discover_codex", lambda _: "codex")
-    monkeypatch.setattr(watch, "fetch_quota", lambda _: Quota())
+    snapshots = iter([Quota()])
+    class Available:
+        primary = replace(exhausted, used_percent=0, resets_at=9999999999)
+        secondary = None
+    monkeypatch.setattr(watch, "fetch_quota", lambda _: next(snapshots, Available()))
     calls = []
     def send(selected, text, **kwargs):
         calls.append(text)
@@ -248,5 +256,15 @@ def test_malformed_submission_acknowledgment_is_uncertain(monkeypatch):
     with pytest.raises(DeliveryUncertain):
         desktop.send("a", "Continue", "owner")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: (_ for _ in ()).throw(ValueError("Invalid frame")))
+    with pytest.raises(DeliveryUncertain):
+        desktop.send("a", "Continue", "owner")
+
+
+@pytest.mark.parametrize("turn", [None, {}, {"id": ""}, {"id": 42}, []])
+def test_missing_turn_identity_is_uncertain(monkeypatch, turn):
+    from codex_charge.codex_ipc import DeliveryUncertain
+    desktop = DesktopIPC("unused")
+    monkeypatch.setattr(desktop, "request", lambda *a, **k: {
+        "handledByClientId": "owner", "result": {"result": {"turn": turn}}})
     with pytest.raises(DeliveryUncertain):
         desktop.send("a", "Continue", "owner")

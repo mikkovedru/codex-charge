@@ -60,7 +60,9 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
         return 1
     goal_resume_pending = {t.key for t in config.desktop_targets} if config.goal_mode else set()
     delivered = set()
-    cycle = None
+    seen_resets = set()
+    pending = False
+    wake_at = 0
 
     _log_status(t("watch.started"))
 
@@ -72,31 +74,45 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
             stop.wait(60)
             continue
 
-        exhausted = quota.exhausted_window()
+        exhausted = [window for window in (quota.primary, quota.secondary)
+                     if window is not None and window.used_percent >= 100]
         used = max(quota.primary.used_percent, quota.secondary.used_percent if quota.secondary else 0)
 
-        if not exhausted:
+        if exhausted:
+            # Both short and weekly limits must recover before any recipient can
+            # continue. Keep the reset identity after delivery to reject stale
+            # snapshots of an already completed reset.
+            reset_cycle = {(w.window_duration_mins, w.resets_at) for w in exhausted}
+            next_wake = max(w.resets_at for w in exhausted) + config.grace_seconds
+            if reset_cycle - seen_resets:
+                seen_resets.update(reset_cycle)
+                delivered.clear()
+                pending = True
+                wake_at = next_wake
+            else:
+                wake_at = max(wake_at, next_wake)
+            prompt = _continue_prompt(config, bool(goal_resume_pending))
+            wake_local = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(wake_at))
+            _log_status(t("watch.blocked", prompt=prompt, time=wake_local))
+            # Refresh quota after waiting; a passed reset timestamp alone does
+            # not prove that quota is available. Keep waits bounded for shutdown.
+            stop.wait(min(60, max(5, wake_at - time.time())))
+            continue
+
+        if getattr(quota, "rate_limit_reached", False):
+            _log_status("Codex still reports a quota limit; waiting for availability.")
+            stop.wait(30)
+            continue
+
+        if not pending:
             _log_status(t("watch.polling", percent=used))
             stop.wait(_poll_interval(used, config.poll_seconds))
             continue
 
-        wake_at = exhausted.resets_at + config.grace_seconds
-        reset_cycle = (exhausted.window_duration_mins, exhausted.resets_at)
-        if reset_cycle != cycle:
-            cycle = reset_cycle
-            delivered.clear()
-        prompt = _continue_prompt(config, bool(goal_resume_pending))
-        wake_local = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(wake_at))
-        _log_status(t("watch.blocked", prompt=prompt, time=wake_local))
-
-        while not stop.is_set():
-            remaining = wake_at - int(time.time())
-            if remaining <= 0:
-                break
-            stop.wait(min(1.0, float(remaining)))
-
-        if stop.is_set():
-            break
+        remaining = wake_at - time.time()
+        if remaining > 0:
+            stop.wait(min(60, remaining))
+            continue
 
         for target in config.desktop_targets:
             if stop.is_set():
@@ -112,6 +128,7 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
                 goal_resume_pending.discard(target.key)
             _log_status(f"{target.title} [{target.id}]: {result.detail}")
 
+        pending = any(target.key not in delivered for target in config.desktop_targets)
         stop.wait(30)
 
     return 0
