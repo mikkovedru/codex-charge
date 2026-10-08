@@ -31,6 +31,7 @@ Issues = "https://github.com/Autumnpoem/codex-autocontinue/issues"
 
 [project.scripts]
 codex-charge = "codex_charge.cli:main"
+codex-charge-gui = "codex_charge.gui:main"
 codex-charge-tray = "codex_charge.tray:main"
 codex-charge-configure = "codex_charge.configure:main"
 

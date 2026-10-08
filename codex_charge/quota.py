@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import queue
+import threading
 import shutil
 import subprocess
 import time
@@ -93,18 +95,21 @@ def discover_codex(explicit: str | None = None) -> str:
     )
 
 
-def _rpc(proc: subprocess.Popen[str], pending: dict[int, Any], method: str, params: dict | None = None) -> Any:
+def _rpc(proc: subprocess.Popen[str], pending: dict[int, Any], method: str, params: dict | None = None, *, responses, timeout=15) -> Any:
     req_id = len(pending) + 1
     payload = {"jsonrpc": "2.0", "id": req_id, "method": method, "params": params or {}}
     pending[req_id] = None
     proc.stdin.write(json.dumps(payload) + "\n")
     proc.stdin.flush()
 
-    deadline = time.monotonic() + 15
+    deadline = time.monotonic() + timeout
     while pending[req_id] is None:
         if time.monotonic() > deadline:
             raise TimeoutError(f"Timeout waiting for RPC response: {method}")
-        line = proc.stdout.readline()
+        try:
+            line = responses.get(timeout=max(.001, deadline - time.monotonic()))
+        except queue.Empty as exc:
+            raise TimeoutError(f"Timeout waiting for RPC response: {method}") from exc
         if not line:
             raise RuntimeError("codex app-server closed stdout unexpectedly")
         try:
@@ -128,19 +133,29 @@ def fetch_quota(codex_path: str | None = None, timeout: float = 15) -> Quota:
         [codex, "app-server"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         text=True,
         encoding="utf-8",
         errors="replace",
     )
+    responses = queue.Queue()
+    def read_responses():
+        try:
+            for line in proc.stdout:
+                responses.put(line)
+        finally:
+            responses.put(None)
+    reader = threading.Thread(target=read_responses, daemon=True)
+    reader.start()
     try:
         _rpc(
             proc,
             pending,
             "initialize",
             {"clientInfo": {"name": "codex-charge", "version": "1.0.0"}},
+            responses=responses, timeout=timeout,
         )
-        result = _rpc(proc, pending, "account/rateLimits/read")
+        result = _rpc(proc, pending, "account/rateLimits/read", responses=responses, timeout=timeout)
         if not result:
             raise RuntimeError("account/rateLimits/read returned empty result")
         limits = result.get("rateLimits")
@@ -172,7 +187,10 @@ def fetch_quota(codex_path: str | None = None, timeout: float = 15) -> Quota:
         )
     finally:
         proc.kill()
-        proc.wait(timeout=timeout)
+        proc.wait(timeout=max(1, timeout))
+        reader.join(timeout=1)
+        proc.stdin.close()
+        proc.stdout.close()
 
 
 def _window_label(duration_mins: int) -> str:

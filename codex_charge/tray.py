@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import sys
 import threading
 from pathlib import Path
 
-from .autostart import is_autostart_enabled, sync_autostart
+from .autostart import is_autostart_enabled, sync_autostart, set_autostart
 from .config import AppConfig, config_dir
 from .i18n import t
 from .pty_backend import StopEvent
@@ -63,14 +64,17 @@ def _console_command(args):
 
 
 class TrayApp:
-    def __init__(self) -> None:
+    def __init__(self, *, launched_at_startup=False) -> None:
         self.config = AppConfig.load()
+        self.launched_at_startup = launched_at_startup
+        self._watch_error = ""
+        self._watch_settings = None
         self.config.apply_locale()
         self._icon: pystray.Icon | None = None
         self._proc: subprocess.Popen[bytes] | None = None
         self._watch_stop = StopEvent()
         self._watch_thread: threading.Thread | None = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def _set_status(self, running: bool) -> None:
         if self._icon is None:
@@ -99,6 +103,10 @@ class TrayApp:
         self._set_status(self._is_running())
 
     def _start_cli(self, goal: bool) -> None:
+        with self._lock:
+            self._start_cli_locked(goal)
+
+    def _start_cli_locked(self, goal: bool) -> None:
         if self._is_running():
             return
 
@@ -126,6 +134,10 @@ class TrayApp:
         self._start_cli(goal=False)
 
     def start_desktop(self, _icon=None, _item=None) -> None:
+        with self._lock:
+            self._start_desktop_locked()
+
+    def _start_desktop_locked(self) -> None:
         if self._is_running():
             return
         self.config = AppConfig.load()
@@ -143,19 +155,29 @@ class TrayApp:
             desktop_targets=tuple(self.config.targets()),
         )
 
+        self._watch_error = ""
+        from .tray_control import watch_settings
+        self._watch_settings = watch_settings(self.config)
         def runner() -> None:
             try:
-                run_desktop_watch(cfg, self._watch_stop)
+                code = run_desktop_watch(cfg, self._watch_stop)
+                if code:
+                    self._watch_error = f"Desktop watch exited with code {code}"
+            except Exception as exc:
+                self._watch_error = str(exc)
+                _log.exception("Desktop watch failed")
             finally:
+                with self._lock:
+                    self._watch_thread = None
                 self._set_status(False)
 
         self._watch_thread = threading.Thread(target=runner, daemon=True)
         self._watch_thread.start()
-        self._set_status(True)
+        self._set_status(self._is_running())
 
     def stop_service(self, _icon=None, _item=None) -> None:
-        self._watch_stop.set()
         with self._lock:
+            self._watch_stop.set()
             proc = self._proc
         if proc is not None and proc.poll() is None:
             proc.terminate()
@@ -177,6 +199,9 @@ class TrayApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def open_configure(self, _icon=None, _item=None) -> None:
+        if sys.platform == "linux":
+            self.open_targets(settings=True)
+            return
         def worker() -> None:
             flags = CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
             subprocess.run(_console_command([*_resolve_cli_exe(), "configure"]), creationflags=flags, check=True)
@@ -188,17 +213,18 @@ class TrayApp:
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def open_targets(self, _icon=None, _item=None):
+    def open_targets(self, _icon=None, _item=None, *, settings=False):
         command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
         def worker():
-            subprocess.run([*command, "--targets"], check=True)
+            subprocess.run([*command, "--settings" if settings else "--targets"], check=True)
             self.config = AppConfig.load()
             if self._icon:
                 self._icon.update_menu()
         threading.Thread(target=worker, daemon=True).start()
 
     def toggle_autostart(self, _icon=None, item=None) -> None:
-        self.config.autostart = not self.config.autostart
+        self.config = AppConfig.load()
+        self.config.autostart = not is_autostart_enabled()
         sync_autostart(self.config.autostart)
         self.config.save()
         if self._icon is not None:
@@ -232,21 +258,50 @@ class TrayApp:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(t("tray.show_quota"), self.show_quota),
-            pystray.MenuItem("Choose signal targets…", self.open_targets, enabled=lambda _: not self._is_running(), visible=sys.platform == "linux"),
+            pystray.MenuItem("Choose signal targets…", self.open_targets, visible=sys.platform == "linux"),
             pystray.MenuItem(t("tray.configure"), self.open_configure),
             pystray.MenuItem(
                 t("tray.autostart"),
                 self.toggle_autostart,
-                checked=lambda _: self.config.autostart,
+                checked=lambda _: is_autostart_enabled(),
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(t("tray.exit"), self.exit_app),
         )
 
+    def control(self, command):
+        if command == "start-watch":
+            if self._proc is not None and self._proc.poll() is None:
+                raise RuntimeError("Stop the CLI service before starting Desktop watch")
+            config = AppConfig.load()
+            if not config.targets():
+                raise RuntimeError("Save at least one target before starting Desktop watch")
+            discover_codex(config.codex_path)
+            self.start_desktop()
+        elif command == "stop-watch":
+            with self._lock:
+                self._watch_stop.set()
+        elif command == "reload":
+            self.config = AppConfig.load()
+            self.config.apply_locale()
+            if self._icon:
+                self._icon.menu = self._build_menu()
+                self._icon.update_menu()
+        elif command != "status":
+            raise ValueError("Unknown tray command")
+        thread = self._watch_thread
+        alive = thread is not None and thread.is_alive()
+        return {"pid": os.getpid(), "desktop_watch": alive,
+                "stopping": alive and self._watch_stop.is_set(),
+                "cli_running": self._proc is not None and self._proc.poll() is None,
+                "launched_at_startup": self.launched_at_startup,
+                "autostart": is_autostart_enabled(), "watch_error": self._watch_error,
+                "watch_settings": self._watch_settings if alive else None}
+
     def run(self) -> None:
         _setup_logging()
-        if self.config.autostart and not is_autostart_enabled():
-            sync_autostart(True)
+        if is_autostart_enabled():
+            set_autostart(True)  # Update enabled entries with the startup marker.
         self._icon = icon_class(pystray.Icon)(
             "codex-charge",
             _make_icon(IDLE_COLOR),
@@ -254,17 +309,27 @@ class TrayApp:
             menu=self._build_menu(),
         )
         _log.info("tray started locale=%s mode=%s backend=%s", self.config.language, self.config.mode, type(self._icon).__name__)
-        self._icon.run()
+        controller = None
+        if sys.platform == "linux":
+            from .tray_control import ControlServer
+            controller = ControlServer(self.control)
+            controller.start()
+        try:
+            self._icon.run()
+        finally:
+            self.stop_service()
+            if controller:
+                controller.close()
 
 
 def main() -> int:
-    if sys.argv[1:] == ["--targets"]:
+    if sys.argv[1:] in (["--targets"], ["--settings"]):
         from .target_ui import main as picker_main
-        return picker_main()
+        return picker_main(settings=sys.argv[1:] == ["--settings"])
     if sys.platform not in {"win32", "linux"}:
         sys.stderr.write("codex-charge tray supports Windows and Linux only.\n")
         return 1
-    TrayApp().run()
+    TrayApp(launched_at_startup="--autostart" in sys.argv[1:]).run()
     return 0
 
 

@@ -125,10 +125,8 @@ def _cmd_targets(argv):
     parser.add_argument("--clear", action="store_true", help="Clear saved selection")
     ns = parser.parse_args(argv)
     if ns.gui:
-        if sys.platform != "linux":
-            parser.error("The graphical picker requires Linux GTK; use --json and --select on this platform")
-        command = [str(Path(sys.executable).with_name("codex-charge-tray.exe" if sys.platform == "win32" else "codex-charge-tray"))] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
-        return subprocess.call([*command, "--targets"])
+        from .gui import main as gui_main
+        return gui_main([])
     inventory = discover_targets()
     config = _load_user_config()
     if ns.select is not None and ns.clear:
@@ -181,6 +179,28 @@ def _cmd_run(argv: list[str]) -> int:
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     init_locale_from_env()
+
+    if argv and argv[0] in {"--help", "-h", "help"}:
+        parser = _build_run_parser()
+        parser.usage = "%(prog)s [COMMAND] [OPTIONS] [-- CODEX_ARGS...]"
+        parser.formatter_class = argparse.RawDescriptionHelpFormatter
+        parser.epilog = """Commands:
+  gui              Open the graphical dashboard, targets and settings
+  targets --gui    Open the same graphical dashboard
+  targets --json   List available Codex targets as JSON
+  run              Run Codex CLI with auto-continue
+  watch            Watch quota and signal saved desktop recipients
+  quota            Show current quota and reset times
+  configure        Configure command-line settings
+
+Use codex-charge COMMAND --help for command options.
+The codex-charge-gui executable opens the GUI directly."""
+        parser.print_help()
+        return 0
+
+    if argv and argv[0] == "gui":
+        from .gui import main as gui_main
+        return gui_main(argv[1:])
 
     if (
         not config_path().exists()

@@ -25,6 +25,11 @@ echo "Building codex-charge CLI..."
   --name codex-charge \
   scripts/entry_cli.py
 
+echo "Building codex-charge GUI launcher..."
+"$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
+  --name codex-charge-gui \
+  scripts/entry_gui.py
+
 echo "Building codex-charge tray..."
 "$PYTHON" -m PyInstaller --noconfirm scripts/tray_linux.spec
 
@@ -32,5 +37,6 @@ echo ""
 echo "Output:"
 echo "  dist/codex-charge"
 echo "  dist/codex-charge-tray"
+echo "  dist/codex-charge-gui"
 echo ""
 echo "Linux desktop mode also requires: sudo apt install xdotool"

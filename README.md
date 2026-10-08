@@ -15,11 +15,13 @@
 
 ### Usage at a glance / 用法速查
 
-**First time / 首次使用（必做一步）**
+**CLI setup / CLI 首次设置**
 
 ```bash
 codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 ```
+
+**For the Linux GUI, run `codex-charge gui` and use Settings directly.**
 
 **Then pick your workflow / 然后按场景选一种：**
 
@@ -28,10 +30,11 @@ codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 | **CLI + Goal mode** | `codex-charge --goal` | Wraps `codex` in terminal; first resume sends `/goal resume` |
 | **CLI + normal** | `codex-charge` | Auto-sends `继续` after reset |
 | **CLI + task args** | `codex-charge --goal -- exec "your task"` | Pass args to codex after `--` |
-| **ChatGPT Codex desktop app** | `codex-charge watch` | **Open the desktop app first**; polls quota & types into window |
+| **Linux graphical dashboard** | `codex-charge gui` or `codex-charge-gui` | Select recipients, view quota, change settings, start/stop Desktop watch |
+| **ChatGPT Codex desktop app** | `codex-charge watch` | Open Codex and save recipients in the GUI first |
 | **System tray (easiest)** | `codex-charge-tray` | Right-click tray icon → Start / Stop / Quota |
 | **Check quota only** | `codex-charge quota` | Shows short/long window usage |
-| **No Python (Release zip)** | Run `codex-charge-tray.exe` (Win) or `codex-charge-tray` (Linux) | Put both binaries in the **same folder**; still need Codex CLI installed & logged in |
+| **No Python (Release zip)** | Run `codex-charge-tray.exe` (Win) or `codex-charge-tray` (Linux) | Keep release binaries in the **same folder** (three on Linux, two on Windows); still need Codex CLI installed & logged in |
 
 **Pre-requisites / 前置条件：** Install [Codex CLI](https://github.com/openai/codex) and sign in with ChatGPT. Linux desktop mode also needs `sudo apt install xdotool` (X11).
 
@@ -49,11 +52,11 @@ When your quota is exhausted, codex-charge waits until the official reset time (
 
 ### Features
 
-- **Two targets**
+- **Two modes**
   - `cli` — PTY wrapper around `codex` in the terminal (most reliable)
-  - `desktop` — watches the quota API and types into the ChatGPT Codex desktop window
+  - `desktop` — watches quota and signals selected Codex chats or windows
 - **Dual-channel reset detection (CLI mode)** — terminal message parsing + `codex app-server` quota API
-- **Bilingual UI** — English / 中文, chosen at first-time setup
+- **Bilingual CLI and tray** — English / 中文; the Linux GTK dashboard currently uses English
 - **Cross-platform** — Windows and Ubuntu (x86_64); `pip install` for developers
 - **Optional tray app** — system tray on Windows & Linux (start/stop, quota, autostart)
 - **MIT licensed** — open source, release-ready
@@ -80,7 +83,7 @@ When your quota is exhausted, codex-charge waits until the official reset time (
 
 **Why dual-channel parsing?** Terminal messages may change format; the official quota API is the fallback. We take the **later** reset time from both sources, then add a **60s grace** buffer to avoid edge-case jitter.
 
-**Why quota API for desktop?** The ChatGPT Codex desktop app (now part of the ChatGPT desktop app) cannot be wrapped with a PTY. Desktop mode polls the same `codex app-server` API and sends keystrokes to the window — it does **not** hook into Electron internals.
+**Desktop delivery:** Desktop mode reads the quota API and addresses explicitly selected recipients. Linux chat targets use the running desktop’s private routing socket; window targets use keyboard input in the selected window. See [target discovery and delivery](docs/target-selection.md) for compatibility and focus requirements.
 
 ### Quick start
 
@@ -127,7 +130,9 @@ Config file: `~/.codex-charge/config.json`
 | `goal_mode` | First resume sends `/goal resume` |
 | `grace_seconds` | Extra wait after reset (default `60`) |
 | `continue_prompt` | Text to send (default `继续`) |
-| `desktop_window_titles` | Window title patterns for desktop mode |
+| `desktop_targets` | Saved chat/window recipient identities |
+| `poll_seconds` | Quota polling interval |
+| `autostart` | Startup preference; the GUI also checks the OS registration |
 
 #### 3. Run
 
@@ -136,7 +141,9 @@ Config file: `~/.codex-charge/config.json`
 codex-charge --goal
 codex-charge --goal -- exec "your long task"
 
-# Desktop app mode (ChatGPT Codex window must be open)
+# Linux GUI: choose and save recipients, then start Desktop watch
+codex-charge gui
+# Terminal watcher using the saved recipients
 codex-charge watch
 
 # Check quota
@@ -150,30 +157,22 @@ codex-charge-tray
 
 The **ChatGPT Codex desktop app** is supported via `desktop` mode:
 
-1. Poll `codex app-server` quota API (same ChatGPT account as CLI)
-2. When usage hits 100%, sleep until `resets_at + grace`
-3. Focus the Codex window and send `继续` or `/goal resume`
+1. Choose and save one or several chat/window recipients in the Linux GUI (or with `targets --select`).
+2. Poll `codex app-server` quota API using the CLI account.
+3. Wait for every exhausted window to recover, retain the grace period, and check fresh quota.
+4. Signal each saved recipient once; retry confirmed failures independently.
 
-| Platform | Desktop input |
-|----------|---------------|
-| Windows | Built-in (clipboard paste + Enter) |
-| Ubuntu X11 | `xdotool` (`sudo apt install xdotool`) |
-| Ubuntu Wayland | Not supported yet — use `cli` mode |
-
-Default window title patterns: `Codex`, `ChatGPT`, `OpenAI Codex`. Override in config:
-
-```json
-{
-  "desktop_window_titles": ["Codex", "My Custom Title"]
-}
-```
+Linux chat delivery uses exact IDs and the desktop router. X11 window delivery
+requires `xdotool` and a focused composer. The GTK dashboard is available on
+Linux. Windows uses CLI selection and window input. Legacy title-pattern
+matching has been replaced by explicit recipients.
 
 ### Distribution options
 
 | Method | Best for | How |
 |--------|----------|-----|
 | **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/Autumnpoem/codex-autocontinue/releases) zip, run `codex-charge-tray` |
-| **Pre-built binary** | Users without Python | Put `codex-charge` + `codex-charge-tray` in the same folder |
+| **Pre-built binary** | Users without Python | Keep release executables together; Linux also includes `codex-charge-gui` |
 | **pip install** | Developers | `pip install "codex-charge[all]"` |
 
 > End users still need **Codex CLI installed and signed in** with a ChatGPT account. This tool only handles auto-continue after quota resets.
@@ -691,10 +690,21 @@ owners. Chat targets address a stable ID; window targets use the chat and focuse
 input currently shown in that window.
 
 ```bash
+./dist/codex-charge gui
+./dist/codex-charge-gui
 ./dist/codex-charge targets --gui
 ./dist/codex-charge targets --json
 ./dist/codex-charge targets --select THREAD_ID_1 --select THREAD_ID_2
 ```
+
+After installing the Python package, use `codex-charge gui` or `codex-charge-gui`.
+For a release archive, keep all three executables together. `codex-charge --help`
+lists both GUI commands.
+
+The GUI shows saved/unsaved selection, live quota usage and reset countdowns,
+startup registration and launch origin, and the actual Desktop watch state.
+Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
+Saved changes to an active watch take effect when it is stopped and started.
 
 Choose targets before starting desktop watch. Local saved chats are included;
 account-wide ChatGPT history and disconnected remote hosts are not enumerated.

@@ -50,11 +50,44 @@ routing currently requires the Linux desktop's Unix socket.
 
 ## User flow
 
-Open **Choose signal targets…** in the tray, or run `codex-charge targets --gui`.
+Open **Choose signal targets…** in the tray, or run `codex-charge gui`, `codex-charge-gui`, or `codex-charge targets --gui`.
+The root `codex-charge --help` lists both GUI command forms. A Linux release
+contains the CLI, tray, and dedicated GUI launcher; keep them together.
 Search by title, ID, project, PID or deep link. Check several rows, edit the signal,
 and use **Save selection** for quota-reset delivery. **Send signal now** sends the
 visible text to the checked rows. **Open selected row** opens a chat without sending.
 Metadata columns can be resized and scrolled; hovering a row shows full values.
+
+The dashboard explicitly marks the selection and signal as **Saved** or
+**Unsaved changes**, including edits made by another open picker. Save before
+starting Desktop watch. The **Start/Stop Desktop watch** button controls the
+tray's actual worker, and status updates every two seconds. A stopping worker
+must finish before another starts. If the tray is absent, Start launches it.
+Closing the picker leaves the tray and active watch running.
+
+Live quota shows usage, local reset dates, and a countdown for each limit.
+Quota refreshes automatically every minute and can be refreshed manually; the
+countdown updates every second. A failed refresh keeps the last known values
+with their age and the error. Quota requests time out if Codex stops responding.
+
+**Run at login** reports the operating system's startup registration; **This tray
+started at login** reports whether this session came from the startup entry.
+The entry launches the tray, without automatically starting Desktop watch.
+Startup entries include `--autostart` so future launches can identify their
+origin; enabled older entries are migrated when the updated tray starts.
+
+**Settings…** opens a GTK editor for language, default mode, Codex CLI path and
+arguments, reset grace, polling interval, and startup registration. The tray's
+Settings menu opens this editor too. Signal text and goal mode remain visible
+in the main window. Saved settings and recipients apply on the next watch start;
+a running watch explicitly indicates when its settings differ from the saved
+ones. Stop and start it to apply changes. Configuration is saved atomically.
+
+On Linux, the picker and tray communicate through a private Codex Charge control
+socket in the configuration directory. Only same-user clients are accepted,
+the socket is mode `0600`, and a second tray cannot replace an active socket.
+The dashboard controls a watch started by the tray; a separately launched
+`codex-charge watch` process is managed in its own terminal.
 
 CLI examples:
 

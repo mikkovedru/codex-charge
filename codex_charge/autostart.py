@@ -12,8 +12,8 @@ _DESKTOP_NAME = "codex-charge-tray.desktop"
 
 def _tray_command() -> str:
     if getattr(sys, "frozen", False):
-        return f'"{Path(sys.executable).resolve()}"'
-    return f'"{sys.executable}" -m codex_charge.tray'
+        return f'"{Path(sys.executable).resolve()}" --autostart'
+    return f'"{sys.executable}" -m codex_charge.tray --autostart'
 
 
 def _windows_startup_dir() -> Path:
@@ -37,7 +37,15 @@ def autostart_target() -> Path | None:
 
 def is_autostart_enabled() -> bool:
     target = autostart_target()
-    return target is not None and target.exists()
+    if target is None or not target.exists():
+        return False
+    if sys.platform.startswith("linux"):
+        entries = dict(line.split("=", 1) for line in target.read_text().splitlines() if "=" in line)
+        if entries.get("Hidden", "false").lower() == "true":
+            return False
+        if entries.get("X-GNOME-Autostart-enabled", "true").lower() == "false":
+            return False
+    return True
 
 
 def set_autostart(enabled: bool) -> None:
