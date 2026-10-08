@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from codex_charge.pty_backend import StopEvent
 from codex_charge.quota import Quota, RateWindow
 from codex_charge import watch as watch_mod
+from codex_charge.targets import Target
+from codex_charge.target_delivery import DeliveryResult
 
 
 @dataclass
@@ -34,12 +36,12 @@ def test_desktop_watch_sends_on_reset(monkeypatch) -> None:
     monkeypatch.setattr(watch_mod, "discover_codex", lambda *_a, **_k: "/usr/bin/codex")
     monkeypatch.setattr(
         watch_mod,
-        "send_to_desktop",
-        lambda text, **kwargs: sent.append(text) or True,
+        "deliver_targets",
+        lambda targets, text, **kwargs: sent.append(text) or [DeliveryResult(targets[0], True, "Sent")],
     )
 
     stop = StopEvent()
-    cfg = watch_mod.WatchConfig(goal_mode=True, grace_seconds=1, poll_seconds=1)
+    cfg = watch_mod.WatchConfig(goal_mode=True, grace_seconds=1, poll_seconds=1, desktop_targets=(Target("thread", "a", "A"),))
 
     def stop_soon():
         time.sleep(2.5)

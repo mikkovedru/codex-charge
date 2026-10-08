@@ -128,6 +128,10 @@ class TrayApp:
     def start_desktop(self, _icon=None, _item=None) -> None:
         if self._is_running():
             return
+        self.config = AppConfig.load()
+        if not self.config.targets():
+            self.open_targets()
+            return
         self._watch_stop = StopEvent()
         cfg = WatchConfig(
             codex_path=self.config.codex_path,
@@ -136,6 +140,7 @@ class TrayApp:
             grace_seconds=self.config.grace_seconds,
             poll_seconds=self.config.poll_seconds,
             desktop_window_titles=self.config.window_titles(),
+            desktop_targets=tuple(self.config.targets()),
         )
 
         def runner() -> None:
@@ -183,6 +188,15 @@ class TrayApp:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def open_targets(self, _icon=None, _item=None):
+        command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
+        def worker():
+            subprocess.run([*command, "--targets"], check=True)
+            self.config = AppConfig.load()
+            if self._icon:
+                self._icon.update_menu()
+        threading.Thread(target=worker, daemon=True).start()
+
     def toggle_autostart(self, _icon=None, item=None) -> None:
         self.config.autostart = not self.config.autostart
         sync_autostart(self.config.autostart)
@@ -218,6 +232,7 @@ class TrayApp:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(t("tray.show_quota"), self.show_quota),
+            pystray.MenuItem("Choose signal targets…", self.open_targets, enabled=lambda _: not self._is_running(), visible=sys.platform == "linux"),
             pystray.MenuItem(t("tray.configure"), self.open_configure),
             pystray.MenuItem(
                 t("tray.autostart"),
@@ -243,6 +258,9 @@ class TrayApp:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["--targets"]:
+        from .target_ui import main as picker_main
+        return picker_main()
     if sys.platform not in {"win32", "linux"}:
         sys.stderr.write("codex-charge tray supports Windows and Linux only.\n")
         return 1

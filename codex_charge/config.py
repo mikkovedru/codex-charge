@@ -37,6 +37,7 @@ class AppConfig:
     codex_args: list[str] | None = None
     desktop_window_titles: list[str] | None = None
     poll_seconds: int = 30
+    desktop_targets: list[dict] | None = None
 
     @classmethod
     def load(cls) -> AppConfig:
@@ -55,6 +56,7 @@ class AppConfig:
             codex_args=data.get("codex_args"),
             desktop_window_titles=data.get("desktop_window_titles"),
             poll_seconds=int(data.get("poll_seconds", 30)),
+            desktop_targets=data.get("desktop_targets"),
         )
 
     def save(self) -> None:
@@ -71,3 +73,7 @@ class AppConfig:
         if self.desktop_window_titles:
             return tuple(self.desktop_window_titles)
         return DEFAULT_WINDOW_TITLES
+
+    def targets(self):
+        from .targets import Target
+        return [Target.from_dict(value) for value in (self.desktop_targets or [])]

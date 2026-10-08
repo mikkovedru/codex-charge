@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+import json
+import subprocess
+from pathlib import Path
 
 from .config import AppConfig, config_path
 from .configure import run_configure
@@ -108,8 +111,51 @@ def _cmd_watch(argv: list[str]) -> int:
         grace_seconds=ns.grace if ns.grace is not None else user.grace_seconds,
         poll_seconds=user.poll_seconds,
         desktop_window_titles=user.window_titles(),
+        desktop_targets=tuple(user.targets()),
     )
     return run_desktop_watch(config)
+
+
+def _cmd_targets(argv):
+    from .targets import discover_targets
+    parser = argparse.ArgumentParser(prog="codex-charge targets", description="Discover Codex chats and windows, and select signal recipients")
+    parser.add_argument("--json", action="store_true", help="Print all metadata as JSON")
+    parser.add_argument("--gui", action="store_true", help="Open the multi-target picker")
+    parser.add_argument("--select", action="append", metavar="ID", help="Save this target (repeat for multiple targets)")
+    parser.add_argument("--clear", action="store_true", help="Clear saved selection")
+    ns = parser.parse_args(argv)
+    if ns.gui:
+        if sys.platform != "linux":
+            parser.error("The graphical picker requires Linux GTK; use --json and --select on this platform")
+        command = [str(Path(sys.executable).with_name("codex-charge-tray.exe" if sys.platform == "win32" else "codex-charge-tray"))] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
+        return subprocess.call([*command, "--targets"])
+    inventory = discover_targets()
+    config = _load_user_config()
+    if ns.select is not None and ns.clear:
+        parser.error("--select and --clear cannot be combined")
+    if ns.select:
+        selection = []
+        for value in ns.select:
+            matches = [t for t in inventory.targets if value in (t.id, t.key)]
+            if len(matches) != 1:
+                parser.error(f"Target {value!r} is unavailable or ambiguous; use its full key from --json")
+            if matches[0].key not in {t.key for t in selection}:
+                selection.append(matches[0])
+        config.desktop_targets = [t.to_dict() for t in selection]
+        config.mode = "desktop"
+        config.save()
+    elif ns.clear:
+        config.desktop_targets = []
+        config.save()
+    selected = {t.key for t in config.targets()}
+    if ns.json:
+        print(json.dumps({"targets": [dict(t.to_dict(), key=t.key, selected=t.key in selected) for t in inventory.targets], "warnings": inventory.warnings}, indent=2, ensure_ascii=False))
+    else:
+        for t in inventory.targets:
+            print(f"{'[x]' if t.key in selected else '[ ]'} {t.kind:6} {t.title}\n    ID: {t.id}  PID: {t.pid or '—'}  Instance: {t.instance}\n    {t.deeplink or t.status}")
+        for warning in inventory.warnings:
+            print(f"Warning: {warning}", file=sys.stderr)
+    return 0
 
 
 def _cmd_run(argv: list[str]) -> int:
@@ -139,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     if (
         not config_path().exists()
         and sys.stdin.isatty()
-        and (not argv or argv[0] not in {"configure", "quota", "help", "-h", "--help"})
+        and (not argv or argv[0] not in {"configure", "quota", "targets", "help", "-h", "--help"})
     ):
         run_configure()
 
@@ -161,6 +207,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if head == "configure":
         return _cmd_configure(tail)
+
+    if head == "targets":
+        return _cmd_targets(tail)
 
     if head == "watch":
         return _cmd_watch(tail)

@@ -16,7 +16,7 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
 ]
-dependencies = []
+dependencies = ["websocket-client>=1.8", "python-xlib>=0.33; sys_platform == 'linux'"]
 
 [project.optional-dependencies]
 windows = ["pywinpty>=2.0.15"]

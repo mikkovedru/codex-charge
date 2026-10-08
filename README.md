@@ -680,3 +680,23 @@ PYTHON=.venv/bin/python bash scripts/build_linux.sh
 ```
 
 Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher works from any directory. Use `CODEX_CHARGE_CONFIG_DIR` for isolated settings during checks; live quota tests require `CODEX_CHARGE_LIVE_TESTS=1`. `PYSTRAY_BACKEND` can explicitly override the Cinnamon backend selection.
+
+
+## Choose Codex signal recipients
+
+The tray menu now has **Choose signal targets…**. Select one or several chats or
+windows, then save the selection for quota-reset signals. The picker shows titles,
+thread/window IDs, process IDs, profiles, deep links, projects and live desktop
+owners. Chat targets address a stable ID; window targets use the chat and focused
+input currently shown in that window.
+
+```bash
+./dist/codex-charge targets --gui
+./dist/codex-charge targets --json
+./dist/codex-charge targets --select THREAD_ID_1 --select THREAD_ID_2
+```
+
+Choose targets before starting desktop watch. Local saved chats are included;
+account-wide ChatGPT history and disconnected remote hosts are not enumerated.
+See [the research, design and delivery notes](docs/target-selection.md) for protocol
+compatibility, focus requirements and per-target retry behavior.
