@@ -65,6 +65,31 @@ tray's actual worker, and status updates every two seconds. A stopping worker
 must finish before another starts. If the tray is absent, Start launches it.
 Closing the picker leaves the tray and active watch running.
 
+The list includes separate **Task status** and **Goal status** columns next to
+its title. Status and target discovery refresh every 15 seconds without clearing
+your choices or unsaved edits; **Refresh** updates them immediately. The list
+shows the last refresh time. Search also matches both status columns.
+
+Task status reports **Running**, **Waiting for approval**, **Waiting for input**,
+**Idle**, **Error**, or **Not loaded**. For an open local chat, a temporary,
+owner-pinned observer reads the desktop's current runtime snapshot and detaches.
+It never resumes the chat or starts a turn. Desktop state takes precedence over
+the metadata daemon, which can report an active desktop chat as not loaded.
+The private snapshot adapter currently supports version 11 and fails visibly if
+it becomes incompatible. Only status fields are retained; conversation contents
+and goal objectives are discarded.
+
+Goal status reports **Active**, **Paused**, **Blocked**, **Usage limited**,
+**Budget limited**, **Complete**, or **No goal**. The desktop's current goal takes
+precedence; a read-only, schema-checked `goals_*.sqlite` query supplies persisted
+status for saved chats. Cached completed goals are shown when no newer
+persisted goal exists. A missing or unsupported source
+is **Unavailable**, rather than an inferred idle task or absent goal. Window
+recipients show **Unavailable** because they do not identify a fixed chat.
+Disconnected saved selections remain listed with unavailable statuses.
+The public runtime and goal states are documented in the
+[Codex App Server reference](https://learn.chatgpt.com/docs/app-server).
+
 Live quota shows usage, local reset dates, and a countdown for each limit.
 Quota refreshes automatically every minute and can be refreshed manually; the
 countdown updates every second. A failed refresh keeps the last known values

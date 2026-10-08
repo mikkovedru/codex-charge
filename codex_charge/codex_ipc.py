@@ -57,6 +57,23 @@ class DesktopIPC:
             data.extend(chunk)
         return bytes(data)
 
+    def _write(self, message):
+        payload = json.dumps(message).encode()
+        self.socket.sendall(struct.pack("<I", len(payload)) + payload)
+
+    def _message(self, deadline, max_size=16 * 1024 * 1024):
+        size = struct.unpack("<I", self._read(4, deadline))[0]
+        if not 0 < size <= max_size:
+            raise ValueError("Invalid Codex IPC frame size")
+        message = json.loads(self._read(size, deadline))
+        if not isinstance(message, dict):
+            raise ValueError("Invalid Codex IPC message")
+        if message.get("type") == "client-discovery-request":
+            # We only consume requests; never claim ownership of a chat.
+            self._write(dict(type="client-discovery-response",
+                requestId=message["requestId"], response={"canHandle": False}))
+        return message
+
     def request(self, method, params, *, version=0, target_client=None):
         request_id = str(uuid.uuid4())
         request = dict(type="request", requestId=request_id,
@@ -64,26 +81,62 @@ class DesktopIPC:
                        version=version, timeoutMs=int(self.timeout * 1000))
         if target_client:
             request["targetClientId"] = target_client
-        payload = json.dumps(request).encode()
-        self.socket.sendall(struct.pack("<I", len(payload)) + payload)
+        self._write(request)
         deadline = time.monotonic() + self.timeout
         while time.monotonic() < deadline:
-            self.socket.settimeout(max(.01, deadline - time.monotonic()))
-            size = struct.unpack("<I", self._read(4, deadline))[0]
-            if not 0 < size <= 16 * 1024 * 1024:
-                raise ValueError("Invalid Codex IPC frame size")
-            message = json.loads(self._read(size, deadline))
-            if message.get("type") == "client-discovery-request":
-                # We only consume requests; never claim ownership of a chat.
-                answer = json.dumps(dict(type="client-discovery-response",
-                    requestId=message["requestId"], response={"canHandle": False})).encode()
-                self.socket.sendall(struct.pack("<I", len(answer)) + answer)
+            message = self._message(deadline)
             if message.get("requestId") != request_id or message.get("type") != "response":
                 continue
             if message.get("resultType") != "success":
                 raise RuntimeError(message.get("error", "Codex IPC request failed"))
             return message
         raise TimeoutError("Codex desktop did not respond")
+
+    def status_snapshot(self, thread_id, owner):
+        """Observe the owner's current state, then detach. Never resume a chat.
+
+        Snapshot version 11 is private desktop IPC. Validate the owner and chat
+        identity, retain only status fields, and fail visibly on incompatibility.
+        """
+        def follow(enabled):
+            self._write(dict(type="broadcast", method="thread-stream-following-changed",
+                version=1, sourceClientId=self.client_id, targetClientIds=[owner],
+                params={"hostId": "local", "conversationId": thread_id, "following": enabled}))
+        follow(True)
+        deadline = time.monotonic() + self.timeout
+        try:
+            while time.monotonic() < deadline:
+                # Desktop snapshots include history; use a bounded larger frame.
+                message = self._message(deadline, max_size=64 * 1024 * 1024)
+                if (message.get("type") != "broadcast" or
+                        message.get("method") != "thread-stream-state-changed" or
+                        message.get("sourceClientId") != owner):
+                    continue
+                params = message.get("params", {})
+                if params.get("conversationId") != thread_id or params.get("hostId") != "local":
+                    continue
+                if message.get("version") != 11:
+                    raise ValueError("Unsupported Codex desktop status version")
+                change = params.get("change", {})
+                if change.get("type") != "snapshot":
+                    continue
+                state = change.get("conversationState")
+                if not isinstance(state, dict) or state.get("id") != thread_id or state.get("hostId") != "local":
+                    raise ValueError("Invalid Codex desktop status identity")
+                runtime = state.get("threadRuntimeStatus")
+                goal = state.get("threadGoal") or state.get("completedThreadGoal")
+                # Do not retain conversation histories, prompts, or objectives.
+                return {"task": {k: runtime[k] for k in ("type", "activeFlags") if k in runtime}
+                            if isinstance(runtime, dict) else None,
+                        "goal": goal.get("status") if isinstance(goal, dict) else None,
+                        "goal_available": "threadGoal" in state or "completedThreadGoal" in state,
+                        "goal_current": isinstance(state.get("threadGoal"), dict)}
+            raise TimeoutError("Codex desktop status timed out")
+        finally:
+            try:
+                follow(False)
+            except OSError:
+                pass  # Disconnect also removes this observer from the owner.
 
     def owner(self, thread_id, host_id="local"):
         response = self.request("thread-owner-discovery",

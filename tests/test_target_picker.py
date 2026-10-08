@@ -14,6 +14,7 @@ from codex_charge.config import AppConfig, config_dir
 from codex_charge.quota import Quota, RateWindow
 from codex_charge import autostart
 from pathlib import Path
+from dataclasses import replace
 import time
 # Keep GUI tests offline and startup changes confined to this test directory.
 autostart.autostart_target = lambda: config_dir() / "test.desktop"
@@ -31,8 +32,8 @@ def control(command="status", **kwargs):
     return dict(runtime)
 target_ui.tray_control.request = control
 from gi.repository import GLib, Gtk
-alpha = Target("thread", "alpha", "Same title", instance="profile", deeplink="codex://threads/alpha")
-beta = Target("thread", "beta", "Same title", instance="profile", deeplink="codex://threads/beta")
+alpha = Target("thread", "alpha", "Same title", instance="profile", deeplink="codex://threads/alpha", task_status="Running", goal_status="Active")
+beta = Target("thread", "beta", "Same title", instance="profile", deeplink="codex://threads/beta", task_status="Idle", goal_status="Paused")
 target_ui.discover_targets = lambda: Inventory([alpha, beta])
 AppConfig().save()
 window = target_ui.TargetPicker()
@@ -40,12 +41,12 @@ window.show_all()
 errors = []
 def idle():
     deadline = time.monotonic() + 3
-    while window.busy or window.runtime_busy or window.quota_busy:
+    while window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         while Gtk.events_pending(): Gtk.main_iteration_do(False)
         assert time.monotonic() < deadline
         time.sleep(.005)
 def check():
-    if window.busy or window.runtime_busy or window.quota_busy:
+    if window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         return True
     try:
         assert "Saved" in window.save_state.get_text()
@@ -58,6 +59,31 @@ def check():
         window._toggle(None, "0")
         assert list(window.selected.values()) == [beta]
         assert window.dirty() and "Unsaved" in window.save_state.get_text()
+        assert [c.get_title() for c in window.table.get_columns()][2:4] == ["Task status", "Goal status"]
+        window.table.get_selection().select_path("0")
+        target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
+        window.refresh_statuses()
+        assert not window.busy and window.table.get_sensitive()
+        idle()
+        assert window._row_target().id == "beta"
+        assert window.dirty() and list(window.selected) == [beta.key]
+        assert window.filtered[0][10:12] == ["Waiting for input", "Blocked"]
+        assert "Every 15 seconds" in window.inventory_status.get_text()
+        window.search.set_text("blocked")
+        window.filtered.refilter()
+        assert len(window.filtered) == 1
+        # Selected recipients remain visible when discovery no longer finds them.
+        target_ui.discover_targets = lambda: Inventory([alpha])
+        window.search.set_text("beta")
+        window.filtered.refilter()
+        window.refresh_statuses()
+        idle()
+        assert list(window.selected) == [beta.key]
+        assert window.filtered[0][10:12] == ["Unavailable", "Unavailable"]
+        assert window.filtered[0][3] == "Unavailable — saved selection"
+        target_ui.discover_targets = lambda: Inventory([alpha, beta])
+        window.refresh_statuses()
+        idle()
         window.toggle_watch()
         assert "Save selection" in window.status.get_text()
         assert "start-watch" not in commands
@@ -75,6 +101,13 @@ def check():
         window.signal.set_text("Edited")
         assert window.dirty()
         window.signal.set_text("Continue")
+        assert not window.dirty()
+        # A failed automatic refresh must not show the last statuses as live.
+        target_ui.discover_targets = lambda: (_ for _ in ()).throw(RuntimeError("disconnected"))
+        window.refresh_statuses()
+        idle()
+        assert all(row[10:12] == ["Unavailable", "Unavailable"] for row in window.store)
+        assert "disconnected" in window.inventory_status.get_text()
         assert not window.dirty()
         from codex_charge.settings_ui import SettingsDialog
         dialog = SettingsDialog(window)

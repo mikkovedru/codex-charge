@@ -7,6 +7,7 @@ import socket
 import sqlite3
 import stat
 import sys
+from contextlib import closing
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import quote
@@ -24,6 +25,8 @@ class Target:
     cwd: str = ""
     status: str = ""
     owner_id: str = ""
+    task_status: str = "Unavailable"
+    goal_status: str = "Unavailable"
 
     @property
     def key(self):
@@ -52,7 +55,40 @@ def _thread_target(record, home, ipc):
     return Target("thread", thread_id, record.get("name") or record.get("title") or thread_id,
         instance=str(home), endpoint=ipc,
         deeplink=f"codex://threads/{quote(thread_id, safe='')}", cwd=record.get("cwd", ""),
-        status="Saved chat")
+        status="Saved chat", task_status=task_status(record.get("status")))
+
+
+def task_status(value):
+    if not isinstance(value, dict):
+        return "Unavailable"
+    kind = value.get("type")
+    if kind == "active":
+        flags = value.get("activeFlags") or []
+        waiting = [label for flag, label in (("waitingOnApproval", "Waiting for approval"),
+            ("waitingOnUserInput", "Waiting for input")) if flag in flags]
+        return " / ".join(waiting) if waiting else "Running"
+    return {"idle": "Idle", "notLoaded": "Not loaded", "systemError": "Error"}.get(kind, "Unavailable")
+
+
+def goal_status(value):
+    return {"active": "Active", "paused": "Paused", "blocked": "Blocked",
+        "usageLimited": "Usage limited", "usage_limited": "Usage limited",
+        "budgetLimited": "Budget limited", "budget_limited": "Budget limited",
+        "complete": "Complete"}.get(value, "Unavailable")
+
+
+def _saved_goals(home):
+    """Read only persisted goal statuses. None means this schema is unavailable."""
+    databases = sorted((p for p in home.glob("goals_*.sqlite")
+        if p.stem.split("_")[-1].isdigit()),
+        key=lambda p: int(p.stem.split("_")[-1]), reverse=True)
+    for database in databases:
+        with closing(sqlite3.connect(f"file:{quote(str(database))}?mode=ro", uri=True, timeout=1)) as db:
+            columns = {r[1] for r in db.execute("PRAGMA table_info(thread_goals)")}
+            if not {"thread_id", "status"} <= columns:
+                continue
+            return dict(db.execute("SELECT thread_id,status FROM thread_goals"))
+    return None
 
 
 class AppServer:
@@ -257,18 +293,46 @@ def discover_targets():
             except (OSError, sqlite3.Error, ValueError) as exc:
                 records = []
                 inventory.warnings.append(f"Saved chat discovery: {exc}")
+        try:
+            goals = _saved_goals(home)
+        except (OSError, sqlite3.Error) as exc:
+            goals = None
+            inventory.warnings.append(f"Goal status unavailable: {exc}")
         targets = [_thread_target(r, home, ipc) for r in records]
+        if goals is not None:
+            targets = [replace(t, goal_status=goal_status(goals[t.id]) if t.id in goals else "No goal")
+                       for t in targets]
         if ipc and targets and sys.platform.startswith("linux"):
             try:
                 with DesktopIPC(ipc, timeout=3) as desktop:
                     for index, target in enumerate(targets):
                         try:
                             owner = desktop.owner(target.id)
-                            targets[index] = replace(target, status="Open in desktop", owner_id=owner)
+                            targets[index] = replace(target, status="Open in desktop", owner_id=owner, task_status="Unavailable")
                         except RuntimeError as exc:
                             if str(exc) != "no-client-found":
                                 inventory.warnings.append(f"Desktop owner discovery: {exc}")
                                 break
+                    for index, target in enumerate(targets):
+                        if not target.owner_id:
+                            continue
+                        try:
+                            snapshot = desktop.status_snapshot(target.id, target.owner_id)
+                            current_goal = target.goal_status
+                            if snapshot["goal"] is not None:
+                                # A cached completed goal must not hide a newer
+                                # goal that is persisted but not yet hydrated.
+                                if snapshot.get("goal_current") or current_goal in {"No goal", "Unavailable", "Complete"}:
+                                    current_goal = goal_status(snapshot["goal"])
+                            elif goals is None and snapshot.get("goal_available"):
+                                current_goal = "No goal"
+                            targets[index] = replace(target,
+                                task_status=task_status(snapshot["task"]), goal_status=current_goal)
+                        except Exception as exc:
+                            # A partial frame or timeout makes this connection unsafe
+                            # to reuse. Preserve owner discovery and persisted goals.
+                            inventory.warnings.append(f"Live task status unavailable: {exc}")
+                            break
             except Exception as exc:
                 inventory.warnings.append(f"Desktop routing: {exc}")
         inventory.targets.extend(targets)

@@ -150,7 +150,7 @@ def _cmd_targets(argv):
         print(json.dumps({"targets": [dict(t.to_dict(), key=t.key, selected=t.key in selected) for t in inventory.targets], "warnings": inventory.warnings}, indent=2, ensure_ascii=False))
     else:
         for t in inventory.targets:
-            print(f"{'[x]' if t.key in selected else '[ ]'} {t.kind:6} {t.title}\n    ID: {t.id}  PID: {t.pid or '—'}  Instance: {t.instance}\n    {t.deeplink or t.status}")
+            print(f"{'[x]' if t.key in selected else '[ ]'} {t.kind:6} {t.title}\n    ID: {t.id}  PID: {t.pid or '—'}  Instance: {t.instance}\n    Task: {t.task_status}  Goal: {t.goal_status}\n    {t.deeplink or t.status}")
         for warning in inventory.warnings:
             print(f"Warning: {warning}", file=sys.stderr)
     return 0

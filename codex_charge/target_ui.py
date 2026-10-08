@@ -1,6 +1,8 @@
 """GTK target picker; discovery and delivery run outside the UI thread."""
 from __future__ import annotations
 
+from dataclasses import replace
+
 import threading
 import subprocess
 import sys
@@ -30,6 +32,7 @@ class TargetPicker(Gtk.Window):
         self.runtime = None
         self.runtime_busy = False
         self.quota_busy = False
+        self.discovery_busy = False
         self.quota = None
         self.quota_error = ""
         self.quota_updated = None
@@ -59,10 +62,10 @@ class TargetPicker(Gtk.Window):
             controls.pack_start(widget, False, False, 0)
         dashboard.pack_start(controls, False, False, 0)
         box.pack_start(dashboard, False, False, 0)
-        self.search = Gtk.SearchEntry(placeholder_text="Search title, ID, project, process, or link…")
+        self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
         box.pack_start(self.search, False, False, 0)
-        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str)
+        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
         self.table = Gtk.TreeView(model=self.filtered)
@@ -71,19 +74,26 @@ class TargetPicker(Gtk.Window):
         checkbox = Gtk.CellRendererToggle()
         checkbox.connect("toggled", self._toggle)
         self.table.append_column(Gtk.TreeViewColumn("Select", checkbox, active=0))
-        widths = [300, 80, 160, 295, 95, 260, 400, 300, 300]
-        for index, name in enumerate(("Title", "Kind", "Availability", "ID", "PID", "Instance", "Deep link", "Project", "Desktop client"), 1):
+        columns = [("Title", 1, 270), ("Task status", 10, 170), ("Goal status", 11, 140),
+                   ("Kind", 2, 80), ("Availability", 3, 160), ("ID", 4, 295),
+                   ("PID", 5, 95), ("Instance", 6, 260), ("Deep link", 7, 400),
+                   ("Project", 8, 300), ("Desktop client", 9, 300)]
+        for name, index, width in columns:
             renderer = Gtk.CellRendererText()
             renderer.set_property("ellipsize", 3)
             column = Gtk.TreeViewColumn(name, renderer, text=index)
             column.set_resizable(True)
             column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
-            column.set_fixed_width(widths[index - 1])
+            column.set_fixed_width(width)
             self.table.append_column(column)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroller.add(self.table)
         box.pack_start(scroller, True, True, 0)
+        self.inventory_status = Gtk.Label(label="Discovering targets…", xalign=0)
+        self.inventory_status.set_line_wrap(True)
+        self.inventory_status.set_tooltip_text("Chat statuses refresh every 15 seconds. Task state comes from Codex's live desktop owner when available; goal state also uses the saved goal database. Windows do not identify a fixed chat. Unavailable means the state could not be read.")
+        box.pack_start(self.inventory_status, False, False, 0)
         self.summary = Gtk.Label(xalign=0, selectable=True)
         box.pack_start(self.summary, False, False, 0)
         self.save_state = Gtk.Label(xalign=0)
@@ -98,7 +108,7 @@ class TargetPicker(Gtk.Window):
         self.signal.connect("changed", lambda _: self._summary())
         self.goal.connect("toggled", lambda _: self._summary())
         box.pack_start(self.goal, False, False, 0)
-        self.status = Gtk.Label(label="Discovering targets…", xalign=0, selectable=True)
+        self.status = Gtk.Label(label="Choose recipients, then save your selection.", xalign=0, selectable=True)
         self.status.set_line_wrap(True)
         box.pack_start(self.status, False, False, 0)
         buttons = Gtk.Box(spacing=8)
@@ -115,7 +125,8 @@ class TargetPicker(Gtk.Window):
         self.connect("destroy", self._destroy)
         self._timers = [GLib.timeout_add_seconds(2, self.poll_runtime),
                         GLib.timeout_add_seconds(60, self.refresh_quota),
-                        GLib.timeout_add_seconds(1, self.render_quota)]
+                        GLib.timeout_add_seconds(1, self.render_quota),
+                        GLib.timeout_add_seconds(15, self.refresh_statuses)]
         self.refresh()
         self.poll_runtime()
         self.refresh_quota()
@@ -126,13 +137,13 @@ class TargetPicker(Gtk.Window):
             return False
         _valid, _x, _y, model, path, iterator = context
         row = model[iterator]
-        tooltip.set_text(f"{row[1]}\nID: {row[4]}\nPID: {row[5] or '—'}\nInstance: {row[6]}\n{row[7]}\nProject: {row[8]}\nDesktop client: {row[9]}")
+        tooltip.set_text(f"{row[1]}\nTask: {row[10]}\nGoal: {row[11]}\nID: {row[4]}\nPID: {row[5] or '—'}\nInstance: {row[6]}\n{row[7]}\nProject: {row[8]}\nDesktop client: {row[9]}")
         table.set_tooltip_row(tooltip, path)
         return True
 
     def _visible(self, model, iterator, _data):
         query = self.search.get_text().casefold()
-        return not query or query in " ".join(str(model[iterator][i]) for i in range(1, 10)).casefold()
+        return not query or query in " ".join(str(model[iterator][i]) for i in range(1, 12)).casefold()
 
     def _toggle(self, _renderer, path):
         if self.busy:
@@ -337,22 +348,59 @@ class TargetPicker(Gtk.Window):
             GLib.idle_add(finish)
         threading.Thread(target=worker, daemon=True).start()
 
-    def refresh(self, *_):
-        self.status.set_text("Discovering targets…")
-        def show(inventory):
-            self.store.clear()
-            self.targets = {}
-            live = {t.key: t for t in inventory.targets}
-            for key, saved in list(self.selected.items()):
-                self.selected[key] = live.get(key, saved)
-            for target in [*inventory.targets, *(t for key, t in self.selected.items() if key not in live)]:
-                self.targets[target.instance + "\0" + target.id] = target
-                availability = target.status if target.key in live else "Unavailable — saved selection"
-                self.store.append([target.key in self.selected, target.title, target.kind, availability,
-                    target.id, str(target.pid or ""), target.instance, target.deeplink, target.cwd, target.owner_id])
-            self.status.set_text(f"Found {len(inventory.targets)} targets. " + " ".join(inventory.warnings))
-            self._summary()
-        self._work(discover_targets, show)
+    def _apply_inventory(self, inventory):
+        live = {t.key: t for t in inventory.targets}
+        for key, saved in list(self.selected.items()):
+            self.selected[key] = live.get(key, replace(saved, task_status="Unavailable", goal_status="Unavailable"))
+        targets = {**live, **{k: t for k, t in self.selected.items() if k not in live}}
+        self.targets = {t.instance + "\0" + t.id: t for t in targets.values()}
+        # Update existing rows in place so refresh preserves focus and scrolling.
+        rows = {}
+        for index in range(len(self.store) - 1, -1, -1):
+            row = self.store[index]
+            key = Target(row[2], row[4], row[1], instance=row[6]).key
+            if key not in targets:
+                self.store.remove(row.iter)
+            else:
+                rows[key] = row.iter
+        for key, target in targets.items():
+            values = [key in self.selected, target.title, target.kind,
+                target.status if key in live else "Unavailable — saved selection",
+                target.id, str(target.pid or ""), target.instance, target.deeplink, target.cwd,
+                target.owner_id, target.task_status, target.goal_status]
+            iterator = rows.get(key)
+            if iterator is None:
+                self.store.append(values)
+            else:
+                self.store.set(iterator, list(range(len(values))), values)
+        self.filtered.refilter()
+        self.inventory_status.set_text(f"{len(inventory.targets)} targets · Status refreshed {time.strftime('%H:%M:%S')} · Every 15 seconds"
+            + ("\n" + " ".join(inventory.warnings) if inventory.warnings else ""))
+        self._summary()
+
+    def refresh(self, *_, automatic=False):
+        if self.closed or self.discovery_busy or self.busy:
+            return
+        self.discovery_busy = True
+        if not automatic:
+            self.inventory_status.set_text("Refreshing targets and statuses…")
+        def show(inventory, error):
+            self.discovery_busy = False
+            if error:
+                # Retain the recipients, but never display stale state as current.
+                for row in self.store:
+                    row[10], row[11] = "Unavailable", "Unavailable"
+                self.filtered.refilter()
+                self.inventory_status.set_text(f"Status refresh failed: {error}")
+            else:
+                self._apply_inventory(inventory)
+        self._background(discover_targets, show)
+
+    def refresh_statuses(self):
+        if self.closed:
+            return False
+        self.refresh(automatic=True)
+        return True
 
     def _row_target(self):
         model, iterator = self.table.get_selection().get_selected()
