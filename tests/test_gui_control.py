@@ -144,3 +144,37 @@ def test_simultaneous_gui_and_menu_start_create_one_watch(monkeypatch):
         app.stop_service()
         if thread:
             thread.join(2)
+
+
+@pytest.mark.parametrize("args,command", [(["--targets"], "open-gui"), (["--settings"], "open-settings"), ([], "status")])
+def test_tray_launch_reuses_existing_application(monkeypatch, args, command):
+    from codex_charge import tray
+    calls = []
+    monkeypatch.setattr(tray.sys, "argv", ["codex-charge-tray", *args])
+    monkeypatch.setattr(tray_control, "request", lambda action: calls.append(action) or {"pid": 123})
+    monkeypatch.setattr(tray.TrayApp, "run", lambda *a, **kw: pytest.fail("Created a duplicate tray"))
+    assert tray.main() == 0
+    assert calls == [command]
+
+
+@pytest.mark.parametrize("args,options", [(["--targets"], {"show_gui": True, "settings": False}),
+                                        (["--settings"], {"show_gui": True, "settings": True})])
+def test_first_gui_launch_runs_full_tray(monkeypatch, args, options):
+    from codex_charge import tray
+    calls = []
+    monkeypatch.setattr(tray.sys, "argv", ["codex-charge-tray", *args])
+    def missing(_): raise FileNotFoundError("no tray")
+    monkeypatch.setattr(tray_control, "request", missing)
+    monkeypatch.setattr(tray.TrayApp, "run", lambda self, **kw: calls.append(kw))
+    assert tray.main() == 0
+    assert calls == [options]
+
+
+def test_gui_control_queues_the_right_window_action(monkeypatch):
+    from codex_charge import tray
+    app, calls = tray.TrayApp(), []
+    monkeypatch.setattr(app, "open_targets", lambda **kw: calls.append(kw))
+    assert app.control("open-gui")["gui_control"]
+    assert app.control("open-settings")["gui_control"]
+    assert calls == [{"settings": False}, {"settings": True}]
+    assert not app.control("status")["desktop_watch"]

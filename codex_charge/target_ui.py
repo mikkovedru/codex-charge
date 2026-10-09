@@ -21,7 +21,8 @@ from .targets import Target, discover_targets
 
 
 class TargetPicker(Gtk.Window):
-    def __init__(self):
+    def __init__(self, *, quit_on_close=True):
+        self.quit_on_close = quit_on_close
         super().__init__(title="Codex Charge — Choose targets")
         self.set_default_size(1120, 740)
         self.config = AppConfig.load()
@@ -180,7 +181,8 @@ class TargetPicker(Gtk.Window):
         self.closed = True
         for timer in self._timers:
             GLib.source_remove(timer)
-        Gtk.main_quit()
+        if self.quit_on_close:
+            Gtk.main_quit()
 
     def _background(self, job, done):
         def worker():

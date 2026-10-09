@@ -3,7 +3,7 @@ import logging
 
 import gi
 gi.require_version("XApp", "1.0")
-from gi.repository import GLib, XApp
+from gi.repository import GLib, Gtk, XApp
 from pystray._util.gtk import GtkIcon, mainloop
 
 _log = logging.getLogger("codex-charge.tray")
@@ -15,6 +15,8 @@ class XAppIcon(GtkIcon):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._status_icon = XApp.StatusIcon.new_with_name(self.name)
+        self._last_primary_press = None
+        self._status_icon.connect("button-press-event", self._button_press)
         self._status_icon.set_visible(False)
         self._status_icon.set_tooltip_text(self.title)
         self._update_icon()
@@ -41,8 +43,21 @@ class XAppIcon(GtkIcon):
     @mainloop
     def _update_menu(self):
         self._menu_handle = self._create_menu(self.menu)
-        self._status_icon.set_primary_menu(self._menu_handle)
+        # A primary menu would grab the first click and swallow double-clicks.
+        self._status_icon.set_primary_menu(None)
         self._status_icon.set_secondary_menu(self._menu_handle)
+
+    def _button_press(self, _icon, _x, _y, button, timestamp, _position):
+        if button != 1:
+            self._last_primary_press = None
+            return
+        settings = Gtk.Settings.get_default()
+        interval = settings.get_property("gtk-double-click-time") if settings else 250
+        previous = self._last_primary_press
+        self._last_primary_press = timestamp
+        if previous is not None and (timestamp - previous) % (2**32) <= interval:
+            self._last_primary_press = None
+            self()  # Invoke the dashboard's default menu action.
 
     def _initialize(self):
         super()._initialize()

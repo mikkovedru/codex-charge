@@ -50,9 +50,13 @@ routing currently requires the Linux desktop's Unix socket.
 
 ## User flow
 
-Open **Choose signal targets…** in the tray, or run `codex-charge gui`, `codex-charge-gui`, or `codex-charge targets --gui`.
+Open **Open Codex Charge…** in the tray, or run `codex-charge gui`, `codex-charge-gui`, or `codex-charge targets --gui`.
 The root `codex-charge --help` lists both GUI command forms. A Linux release
 contains the CLI, tray, and dedicated GUI launcher; keep them together.
+All GUI launch commands start the tray too. Further launches reuse the same tray
+and present its existing window, preserving unsaved edits. Closing the window
+keeps the tray and watch running. Double-click the icon to open the dashboard;
+right-click for the tray menu, including **Exit** to quit.
 Search by title, ID, project, PID or deep link. Check several rows, edit the signal,
 and use **Save selection** for quota-reset delivery. With goal recovery disabled,
 **Send signal now** sends the visible text to the checked rows. With recovery

@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="codex-charge gui", description="Open the Codex Charge graphical dashboard, target picker and settings.")
+    parser = argparse.ArgumentParser(prog="codex-charge gui", description="Open the Codex Charge dashboard and system tray; closing the window keeps the tray running.")
     parser.parse_args(argv)
     if sys.platform != "linux":
         parser.error("The graphical dashboard requires Linux GTK")

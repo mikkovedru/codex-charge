@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import logging
 import os
 import shutil
@@ -75,6 +76,7 @@ class TrayApp:
         self._watch_stop = StopEvent()
         self._watch_thread: threading.Thread | None = None
         self._lock = threading.RLock()
+        self._picker = None
 
     def _set_status(self, running: bool) -> None:
         if self._icon is None:
@@ -214,13 +216,19 @@ class TrayApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def open_targets(self, _icon=None, _item=None, *, settings=False):
-        command = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
-        def worker():
-            subprocess.run([*command, "--settings" if settings else "--targets"], check=True)
-            self.config = AppConfig.load()
-            if self._icon:
-                self._icon.update_menu()
-        threading.Thread(target=worker, daemon=True).start()
+        if sys.platform != "linux":
+            return
+        from gi.repository import GLib
+        def show():
+            from .target_ui import TargetPicker
+            if self._picker is None or self._picker.closed:
+                self._picker = TargetPicker(quit_on_close=False)
+                self._picker.show_all()
+            self._picker.present()
+            if settings:
+                self._picker.settings()
+            return False
+        GLib.idle_add(show)
 
     def toggle_autostart(self, _icon=None, item=None) -> None:
         self.config = AppConfig.load()
@@ -236,6 +244,8 @@ class TrayApp:
 
     def _build_menu(self) -> pystray.Menu:
         return pystray.Menu(
+            pystray.MenuItem("Open Codex Charge…", self.open_targets,
+                             default=sys.platform == "linux", visible=sys.platform == "linux"),
             pystray.MenuItem(
                 t("tray.start_goal"),
                 self.start_goal,
@@ -258,7 +268,6 @@ class TrayApp:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(t("tray.show_quota"), self.show_quota),
-            pystray.MenuItem("Choose signal targets…", self.open_targets, visible=sys.platform == "linux"),
             pystray.MenuItem(t("tray.configure"), self.open_configure),
             pystray.MenuItem(
                 t("tray.autostart"),
@@ -287,49 +296,73 @@ class TrayApp:
             if self._icon:
                 self._icon.menu = self._build_menu()
                 self._icon.update_menu()
+        elif command in {"open-gui", "open-settings"}:
+            self.open_targets(settings=command == "open-settings")
         elif command != "status":
             raise ValueError("Unknown tray command")
         thread = self._watch_thread
         alive = thread is not None and thread.is_alive()
-        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True,
+        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True, "gui_control": True,
                 "stopping": alive and self._watch_stop.is_set(),
                 "cli_running": self._proc is not None and self._proc.poll() is None,
                 "launched_at_startup": self.launched_at_startup,
                 "autostart": is_autostart_enabled(), "watch_error": self._watch_error,
                 "watch_settings": self._watch_settings if alive else None}
 
-    def run(self) -> None:
+    def run(self, *, show_gui=False, settings=False) -> None:
         _setup_logging()
-        if is_autostart_enabled():
-            set_autostart(True)  # Update enabled entries with the startup marker.
-        self._icon = icon_class(pystray.Icon)(
-            "codex-charge",
-            _make_icon(IDLE_COLOR),
-            t("app.name"),
-            menu=self._build_menu(),
-        )
-        _log.info("tray started locale=%s mode=%s backend=%s", self.config.language, self.config.mode, type(self._icon).__name__)
         controller = None
         if sys.platform == "linux":
             from .tray_control import ControlServer
             controller = ControlServer(self.control)
             controller.start()
         try:
+            if is_autostart_enabled():
+                set_autostart(True)  # Update enabled entries with the startup marker.
+            self._icon = icon_class(pystray.Icon)(
+                "codex-charge",
+                _make_icon(IDLE_COLOR),
+                t("app.name"),
+                menu=self._build_menu(),
+            )
+            _log.info("tray started locale=%s mode=%s backend=%s", self.config.language, self.config.mode, type(self._icon).__name__)
+            if show_gui:
+                self.open_targets(settings=settings)
             self._icon.run()
         finally:
             self.stop_service()
+            if self._picker is not None and not self._picker.closed:
+                self._picker.destroy()
             if controller:
                 controller.close()
 
 
 def main() -> int:
-    if sys.argv[1:] in (["--targets"], ["--settings"]):
-        from .target_ui import main as picker_main
-        return picker_main(settings=sys.argv[1:] == ["--settings"])
     if sys.platform not in {"win32", "linux"}:
         sys.stderr.write("codex-charge tray supports Windows and Linux only.\n")
         return 1
-    TrayApp(launched_at_startup="--autostart" in sys.argv[1:]).run()
+    show_gui = sys.argv[1:] in (["--targets"], ["--settings"])
+    settings = sys.argv[1:] == ["--settings"]
+    command = ("open-settings" if settings else "open-gui") if show_gui else "status"
+    if sys.platform == "linux":
+        from .tray_control import request
+        try:
+            request(command)
+            return 0
+        except OSError:
+            pass  # No listening tray; this process will own the icon and GUI.
+        except RuntimeError as exc:
+            sys.stderr.write(f"Could not open the running tray: {exc}. Restart the tray to update it.\n")
+            return 1
+    try:
+        TrayApp(launched_at_startup="--autostart" in sys.argv[1:]).run(show_gui=show_gui, settings=settings)
+    except (RuntimeError, OSError) as exc:
+        if sys.platform == "linux" and (str(exc) == "Another tray is already running"
+                or isinstance(exc, OSError) and exc.errno == errno.EADDRINUSE):
+            # A simultaneous launch won the socket between our probe and bind.
+            request(command)
+            return 0
+        raise
     return 0
 
 

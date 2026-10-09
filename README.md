@@ -683,7 +683,7 @@ Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher wor
 
 ## Choose Codex signal recipients
 
-The tray menu now has **Choose signal targets…**. Select one or several chats or
+The tray menu now has **Open Codex Charge…**. Select one or several chats or
 windows, then save the selection for quota-reset signals. The picker shows titles,
 thread/window IDs, process IDs, profiles, deep links, projects and live desktop
 owners. Chat targets address a stable ID; window targets use the chat and focused
@@ -699,7 +699,10 @@ input currently shown in that window.
 
 After installing the Python package, use `codex-charge gui` or `codex-charge-gui`.
 For a release archive, keep all three executables together. `codex-charge --help`
-lists both GUI commands.
+lists both GUI commands. GUI launch commands also start the tray, or reuse the
+running tray and bring its dashboard forward. Closing the window keeps the tray
+and its watch available. Double-click the tray icon to reopen the dashboard;
+right-click for the tray menu. Use **Exit** in that menu to quit the application.
 
 The GUI shows saved/unsaved selection, task and goal status refreshed every 15 seconds,
 live quota usage and reset countdowns,

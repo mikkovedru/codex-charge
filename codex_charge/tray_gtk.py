@@ -42,7 +42,10 @@ class CinnamonGtkIcon(GtkIcon):
         return True
 
     def _button_press(self, _area, event):
-        if event.button in (1, 3) and self._menu_handle is not None:
+        if event.button == 1 and event.type == Gdk.EventType.DOUBLE_BUTTON_PRESS:
+            self()
+            return True
+        if event.button == 3 and self._menu_handle is not None:
             self._menu_handle.popup_at_pointer(event)
             return True
         return False
