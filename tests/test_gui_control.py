@@ -104,7 +104,11 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
         changed.continue_prompt = "New signal"
         changed.save()
         tray_control.request("reload")
-        assert tray_control.request()["watch_settings"]["signal"] != "New signal"
+        deadline = time.monotonic() + 3
+        while tray_control.request()["watch_settings"]["signal"] != "New signal":
+            assert time.monotonic() < deadline
+            time.sleep(.02)
+        assert tray_control.request()["auto_watch_restart"]
         tray_control.request("stop-watch")
         deadline = time.monotonic() + 2
         while tray_control.request()["desktop_watch"] and time.monotonic() < deadline:
@@ -190,3 +194,110 @@ def test_icon_default_toggles_but_open_menu_always_opens(monkeypatch):
     calls.clear()
     next(item for item in menu if item.text == "Open Codex Charge…")(None)
     assert calls == [{}]
+
+
+def wait_until(check, timeout=3):
+    deadline = time.monotonic() + timeout
+    while not check():
+        assert time.monotonic() < deadline
+        time.sleep(.01)
+
+
+def test_automatic_restart_coalesces_edits_and_retains_delivery_state(monkeypatch):
+    from codex_charge import tray
+    calls, active = [], []
+    monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
+    def watch(cfg, stop):
+        active.append(cfg)
+        assert len(active) == 1, "Overlapping watch workers"
+        calls.append(cfg)
+        stop.wait(5)
+        active.remove(cfg)
+        return 0
+    monkeypatch.setattr(tray, "run_desktop_watch", watch)
+    AppConfig(desktop_targets=[Target("thread", "a", "A", send_prompt=True, send_goal=False).to_dict()]).save()
+    app = tray.TrayApp()
+    try:
+        app.control("start-watch")
+        wait_until(lambda:len(calls) == 1)
+        calls[0].state.delivered.add("already sent")
+        for text in ("Draft", "Second", "Final prompt"):
+            config = AppConfig.load(); config.continue_prompt = text; config.save()
+            assert app.control("reload")["restarting"]
+        time.sleep(.15)
+        assert len(calls) == 1
+        wait_until(lambda:len(calls) == 2 and not app.control("status")["restarting"])
+        assert calls[1].continue_prompt == "Final prompt"
+        assert calls[1].state is calls[0].state and "already sent" in calls[1].state.delivered
+        app.control("stop-watch")
+        wait_until(lambda:not app.control("status")["desktop_watch"])
+        config = AppConfig.load(); config.poll_seconds += 1; config.save()
+        app.control("reload")
+        time.sleep(.7)
+        assert len(calls) == 2 and not app.control("status")["watch_requested"]
+    finally:
+        app.stop_service()
+        if app._watch_thread: app._watch_thread.join(2)
+
+
+def test_stop_cancels_restart_while_previous_worker_is_finishing(monkeypatch):
+    from codex_charge import tray
+    import threading
+    finishing, release = threading.Event(), threading.Event()
+    calls = []
+    def watch(cfg, stop):
+        calls.append(cfg)
+        stop.wait(5)
+        finishing.set()
+        release.wait(3)
+        return 0
+    monkeypatch.setattr(tray, "run_desktop_watch", watch)
+    monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
+    AppConfig(desktop_targets=[Target("thread", "a", "A").to_dict()]).save()
+    app = tray.TrayApp()
+    try:
+        app.control("start-watch")
+        config = AppConfig.load(); config.poll_seconds += 1; config.save()
+        app.control("reload")
+        assert finishing.wait(2)
+        assert app.control("status")["stopping"] and app.control("status")["restarting"]
+        app.control("stop-watch")
+        release.set()
+        wait_until(lambda:not app.control("status")["desktop_watch"])
+        time.sleep(.1)
+        assert len(calls) == 1 and not app.control("status")["watch_requested"]
+    finally:
+        release.set(); app.stop_service()
+        if app._watch_thread: app._watch_thread.join(2)
+
+
+@pytest.mark.parametrize("empty_selection", [False, True])
+def test_invalid_saved_draft_suspends_watch_until_valid(monkeypatch, empty_selection):
+    from codex_charge import tray
+    calls = []
+    def watch(cfg, stop):
+        calls.append(cfg)
+        stop.wait(5)
+        return 0
+    monkeypatch.setattr(tray, "run_desktop_watch", watch)
+    monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
+    target = Target("thread", "a", "A", send_prompt=True, send_goal=False)
+    AppConfig(desktop_targets=[target.to_dict()]).save()
+    app = tray.TrayApp()
+    try:
+        app.control("start-watch")
+        config = AppConfig.load()
+        if empty_selection: config.desktop_targets = []
+        else: config.continue_prompt = " "
+        config.save(); app.control("reload")
+        wait_until(lambda:bool(app.control("status")["watch_pause_reason"]))
+        status = app.control("status")
+        assert status["watch_requested"] and not status["desktop_watch"] and not status["restarting"]
+        assert next(item for item in app._build_menu() if item.text == tray.t("tray.stop")).enabled
+        config.desktop_targets = [target.to_dict()]; config.continue_prompt = "Valid"; config.save()
+        app.control("reload")
+        wait_until(lambda:len(calls) == 2)
+        assert app.control("status")["desktop_watch"] and not app.control("status")["watch_pause_reason"]
+    finally:
+        app.stop_service()
+        if app._watch_thread: app._watch_thread.join(2)

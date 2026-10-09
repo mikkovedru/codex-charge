@@ -18,6 +18,8 @@ from .quota import discover_codex, fetch_quota
 from . import tray_control
 from .target_delivery import open_target, send_signals
 from .targets import Target, discover_targets
+from .status_display import COLORS, status_level, status_tooltip
+from .status_log import StatusLog
 
 
 class TargetPicker(Gtk.Window):
@@ -39,6 +41,10 @@ class TargetPicker(Gtk.Window):
         self.quota_error = ""
         self.quota_updated = None
         self.autosave_error = ""
+        self._save_notice = ""
+        self._runtime_notice = None
+        self._inventory_notice = ""
+        self._quota_notice = ""
         self.saved_signature = self._signature(self.config.targets(), self.config.continue_prompt) if config_path().exists() else None
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         box.set_border_width(14)
@@ -111,6 +117,12 @@ class TargetPicker(Gtk.Window):
             renderer = Gtk.CellRendererText()
             renderer.set_property("ellipsize", 3)
             column = Gtk.TreeViewColumn(name, renderer, text=index)
+            if index in (10, 11):
+                column.set_cell_data_func(renderer, self._status_cell, index)
+                header = Gtk.Label(label=name)
+                header.set_tooltip_text(status_tooltip("Unavailable", goal=index == 11))
+                header.show()
+                column.set_widget(header)
             column.set_resizable(True)
             column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
             column.set_fixed_width(width)
@@ -165,15 +177,7 @@ class TargetPicker(Gtk.Window):
         self.send_row.pack_start(self.send_button, False, False, 0)
         self.buttons.append(self.send_button)
         box.pack_start(self.send_row, False, False, 0)
-        # Successful autosaves stay quiet; only errors or external edits need a line.
-        self.save_state = Gtk.Label(xalign=0)
-        self.save_state.set_line_wrap(True)
-        self.save_state.set_no_show_all(True)
-        box.pack_start(self.save_state, False, False, 0)
-        self.status = Gtk.Label(xalign=0, selectable=True)
-        self.status.set_line_wrap(True)
-        self.status.set_no_show_all(True)
-        self.status.connect("notify::label", lambda widget, _: widget.set_visible(bool(widget.get_text())))
+        self.status = StatusLog()
         box.pack_start(self.status, False, False, 0)
         self.connect("delete-event", lambda *_: self.busy)
         self.connect("destroy", self._destroy)
@@ -191,9 +195,37 @@ class TargetPicker(Gtk.Window):
             return False
         _valid, _x, _y, model, path, iterator = context
         row = model[iterator]
+        if keyboard:
+            column = table.get_cursor()[1]
+        else:
+            bx, by = table.convert_widget_to_bin_window_coords(x, y)
+            hit = table.get_path_at_pos(bx, by)
+            column = hit[1] if hit else None
+        name = column.get_title() if column else ""
+        if name in ("Task status", "Goal status"):
+            index = 11 if name == "Goal status" else 10
+            tooltip.set_text(status_tooltip(row[index], goal=index == 11))
+            table.set_tooltip_cell(tooltip, path, column, None)
+            return True
         tooltip.set_text(f"{row[1]}\nTask: {row[10]}\nGoal: {row[11]}\nID: {row[4]}\nPID: {row[5] or '—'}\nInstance: {row[6]}\n{row[7]}\nProject: {row[13] or '—'}\nProject path: {row[8]}\nDesktop client: {row[9]}")
         table.set_tooltip_row(tooltip, path)
         return True
+
+    @staticmethod
+    def _status_cell(_column, renderer, model, iterator, index):
+        text = model[iterator][index]
+        level = status_level(text, goal=index == 11)
+        # Reset all reusable renderer state, including after a colored row.
+        renderer.set_property("foreground-set", False)
+        markup = GLib.markup_escape_text(text)
+        if index == 11 and text == "Complete":
+            markup = f"<span foreground='{COLORS['success']}'>✓</span> " + markup
+        elif level != "normal":
+            renderer.set_property("foreground", COLORS[level])
+        renderer.set_property("markup", markup)
+
+    def _message(self, text, level="normal"):
+        self.status.write(text, level)
 
     def _visible(self, model, iterator, _data):
         query = self.search.get_text().casefold()
@@ -211,7 +243,7 @@ class TargetPicker(Gtk.Window):
         row = self.filtered[path]
         target = self.targets[row[6] + "\0" + row[4]]
         if action == "send_goal" and target.kind != "thread":
-            self.status.set_text("Goal signals need a chat ID. Window recipients support Prompt only.")
+            self._message("Goal signals need a chat ID. Window recipients support Prompt only.", "warning")
             return
         column = 0 if action == "send_prompt" else 12
         row[column] = not row[column]
@@ -240,14 +272,11 @@ class TargetPicker(Gtk.Window):
         goals = sum(t.signal_actions()[1] for t in self.selected.values())
         self.summary.set_text(f"{len(self.selected)} recipient(s) · Prompt: {prompts} · Goal: {goals}. When both are enabled, Goal activation is verified before the prompt is sent.")
         self.summary.set_line_wrap(True)
-        if self.autosave_error:
-            message = "Could not save automatically — retrying: " + self.autosave_error
-        elif self.dirty():
-            message = "Changes differ from saved settings. Edits save automatically."
-        else:
-            message = ""
-        self.save_state.set_markup("<b>" + GLib.markup_escape_text(message) + "</b>")
-        self.save_state.set_visible(bool(message))
+        message = ("Could not save automatically — retrying: " + self.autosave_error if self.autosave_error else
+                   "Changes differ from saved settings. Edits save automatically." if self.dirty() else "")
+        if message and message != self._save_notice:
+            self._message(message, "error" if self.autosave_error else "warning")
+        self._save_notice = message
         self._render_runtime()
 
     def _destroy(self, *_):
@@ -286,7 +315,7 @@ class TargetPicker(Gtk.Window):
                 self.saved_signature = self._signature(saved.targets(), saved.continue_prompt) if config_path().exists() else None
                 self._summary()
             except Exception as exc:
-                self.status.set_text(f"Could not read settings: {exc}")
+                self._message(f"Could not read settings: {exc}", "error")
             self._render_runtime()
         self._background(lambda: tray_control.request(timeout=1), show)
         return True
@@ -297,26 +326,37 @@ class TargetPicker(Gtk.Window):
         runtime = self.runtime or {}
         alive = runtime.get("desktop_watch", False)
         stopping = runtime.get("stopping", False)
-        state = "Stopping…" if stopping else "On" if alive else "Off"
+        restarting = runtime.get("restarting", False)
+        requested = runtime.get("watch_requested", alive)
+        state = "Stopping…" if stopping else "Restarting…" if restarting else "On" if alive else "Off"
         if self.runtime is None:
             state += " — tray is not running or is unavailable"
         elif runtime.get("watch_error"):
-            state += " — " + runtime["watch_error"]
+            state += " — watch error (details below)"
+        elif runtime.get("watch_pause_reason"):
+            state += " — waiting for valid saved settings"
         elif runtime.get("cli_running"):
             state += " — CLI service is running"
         elif alive:
             try:
                 if runtime.get("watch_settings") != tray_control.watch_settings(AppConfig.load()):
-                    state += " — saved changes need a watch restart"
+                    state += " — applying saved changes automatically"
             except Exception:
                 state += " — saved settings could not be read"
         self.watch_label.set_text("Desktop watch: " + state)
         context = self.watch_label.get_style_context()
         for name in ("watch-off", "watch-on", "watch-stopping"):
             context.remove_class(name)
-        context.add_class("watch-stopping" if stopping else "watch-on" if alive else "watch-off")
-        self.watch_button.set_label("Stop Desktop watch" if alive else "Start Desktop watch")
-        self.watch_button.set_sensitive(not self.busy and not self.runtime_busy and not stopping and not runtime.get("cli_running", False))
+        context.add_class("watch-stopping" if stopping or restarting else "watch-on" if alive else "watch-off")
+        self.watch_button.set_label("Stop Desktop watch" if alive or requested else "Start Desktop watch")
+        self.watch_button.set_sensitive(not self.busy and not self.runtime_busy and (not stopping or restarting) and not runtime.get("cli_running", False))
+        notice = runtime.get("watch_error") or runtime.get("watch_pause_reason") or (
+            "Applying saved settings; Desktop watch will restart automatically." if restarting else "")
+        if notice and notice != self._runtime_notice and hasattr(self, "status"):
+            self._message(notice, "error" if runtime.get("watch_error") else "warning" if runtime.get("watch_pause_reason") else "normal")
+        elif self._runtime_notice and not notice and alive and hasattr(self, "status"):
+            self._message("Desktop watch is running with saved settings.")
+        self._runtime_notice = notice
         try:
             enabled = is_autostart_enabled()
             startup = "Enabled" if enabled else "Disabled"
@@ -347,21 +387,21 @@ class TargetPicker(Gtk.Window):
             return config
         def show(config):
             self.config = config
-            self.status.set_text("Run at login enabled." if enabled else "Run at login disabled.")
+            self._message("Run at login enabled." if enabled else "Run at login disabled.")
             self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
         self._work(save, show)
 
     def toggle_watch(self, *_):
-        if self.runtime and self.runtime.get("desktop_watch"):
+        if self.runtime and (self.runtime.get("desktop_watch") or self.runtime.get("watch_requested")):
             command = "stop-watch"
         else:
             if self.dirty() and not self.save():
                 return
             if not self.selected:
-                self.status.set_text("Enable Prompt or Goal for at least one recipient before starting Desktop watch.")
+                self._message("Enable Prompt or Goal for at least one recipient before starting Desktop watch.", "warning")
                 return
             if any(t.signal_actions()[0] for t in self.selected.values()) and not self._prompt_text().strip():
-                self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
+                self._message("Enter a prompt message for recipients with Prompt enabled.", "warning")
                 return
             command = "start-watch"
         def control():
@@ -387,7 +427,7 @@ class TargetPicker(Gtk.Window):
         def show(value):
             self.runtime = value
             self._render_runtime()
-            self.status.set_text("Desktop watch is stopping." if value.get("stopping") else "Desktop watch started." if value.get("desktop_watch") else "Desktop watch is off.")
+            self._message("Desktop watch is stopping." if value.get("stopping") else "Desktop watch started." if value.get("desktop_watch") else "Desktop watch is off.")
         self._work(control, show)
 
     def refresh_quota(self, *_):
@@ -401,6 +441,9 @@ class TargetPicker(Gtk.Window):
             self.quota_busy = False
             self.quota_button.set_sensitive(True)
             self.quota_error = error or ""
+            if error and error != self._quota_notice:
+                self._message("Quota refresh failed: " + error, "error")
+            self._quota_notice = error or ""
             if value:
                 self.quota = value
                 self.quota_updated = time.time()
@@ -412,7 +455,7 @@ class TargetPicker(Gtk.Window):
         if self.closed:
             return False
         if self.quota is None:
-            self.quota_label.set_text("Quota unavailable: " + self.quota_error if self.quota_error else "Quota: loading…")
+            self.quota_label.set_text("Quota unavailable — see messages below" if self.quota_error else "Quota: loading…")
             return True
         def window_text(window):
             label = "5-hour" if window.window_duration_mins == 300 else "Weekly" if window.window_duration_mins == 10080 else f"{window.window_duration_mins}-minute"
@@ -425,7 +468,7 @@ class TargetPicker(Gtk.Window):
             return f"{label}: {window.used_percent:g}% used · resets {reset} ({countdown})"
         lines = [window_text(w) for w in (self.quota.primary, self.quota.secondary) if w is not None]
         age = max(0, int(time.time() - self.quota_updated))
-        lines.append(f"Quota refreshed {age}s ago · automatic refresh every 60s" + (" · Latest refresh failed: " + self.quota_error if self.quota_error else ""))
+        lines.append(f"Quota refreshed {age}s ago · automatic refresh every 60s" + (" · Latest refresh failed — see messages below" if self.quota_error else ""))
         self.quota_label.set_text("\n".join(lines))
         return True
 
@@ -434,7 +477,7 @@ class TargetPicker(Gtk.Window):
         config = SettingsDialog(self).edit()
         if config is not None:
             self.config = config
-            self.status.set_text("Settings saved. Stop and start an active watch to apply them.")
+            self._message("Settings saved; active watch changes apply automatically.")
             self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
             self.refresh_quota()
             self._render_runtime()
@@ -459,7 +502,7 @@ class TargetPicker(Gtk.Window):
             def finish():
                 self._busy(False)
                 if error:
-                    self.status.set_text(error)
+                    self._message(error, "error")
                 else:
                     done(result)
                 return False
@@ -494,8 +537,12 @@ class TargetPicker(Gtk.Window):
             else:
                 self.store.set(iterator, list(range(len(values))), values)
         self.filtered.refilter()
+        warnings = "\n".join(inventory.warnings)
+        if warnings and warnings != self._inventory_notice:
+            self._message(warnings, "warning")
+        self._inventory_notice = warnings
         self.inventory_status.set_text(f"{len(inventory.targets)} targets · Status refreshed {time.strftime('%H:%M:%S')} · Every 15 seconds"
-            + ("\n" + " ".join(inventory.warnings) if inventory.warnings else ""))
+            + (f" · {len(inventory.warnings)} warning(s); see messages below" if inventory.warnings else ""))
         self._summary()
 
     def refresh(self, *_, automatic=False):
@@ -511,7 +558,8 @@ class TargetPicker(Gtk.Window):
                 for row in self.store:
                     row[10], row[11] = "Unavailable", "Unavailable"
                 self.filtered.refilter()
-                self.inventory_status.set_text(f"Status refresh failed: {error}")
+                self.inventory_status.set_text("Status refresh failed; see messages below")
+                self._message(f"Status refresh failed: {error}", "error")
             else:
                 self._apply_inventory(inventory)
         self._background(discover_targets, show)
@@ -532,17 +580,17 @@ class TargetPicker(Gtk.Window):
     def open_row(self, *_):
         try:
             target = self._row_target()
-            self._work(lambda: open_target(target), lambda _: self.status.set_text("Chat opened in Codex. Refresh to update the list."))
+            self._work(lambda: open_target(target), lambda _: self._message("Chat opened in Codex. Refresh to update the list."))
         except Exception as exc:
-            self.status.set_text(str(exc))
+            self._message(str(exc), "error")
 
     def copy_row(self, *_):
         try:
             target = self._row_target()
             Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD).set_text(target.deeplink or target.id, -1)
-            self.status.set_text("Copied.")
+            self._message("Copied.")
         except Exception as exc:
-            self.status.set_text(str(exc))
+            self._message(str(exc), "error")
 
     def save(self, *_):
         # Save synchronously and atomically: rapid checkbox changes cannot race
@@ -557,33 +605,37 @@ class TargetPicker(Gtk.Window):
         except Exception as exc:
             self.autosave_error = str(exc)
             self._summary()
-            self.status.set_text(f"Could not save automatically: {exc}. Retrying while this window is open.")
             return False
+        recovered_save = bool(self.autosave_error)
         self.config = config
         self.autosave_error = ""
         self.saved_signature = self._signature(self.selected.values(), config.continue_prompt)
         self._summary()
-        self.status.set_text("Stop and start the active watch to apply changes." if self.runtime and self.runtime.get("desktop_watch") else "")
+        if recovered_save:
+            self._message("Settings saved after retry.")
         self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
         return True
 
     def send(self, *_):
         if not self.selected:
-            self.status.set_text("Select at least one target before sending.")
+            self._message("Select at least one target before sending.", "warning")
             return
         selected = list(self.selected.values())
         text = self._prompt_text()
         if any(t.signal_actions()[0] for t in selected) and not text.strip():
-            self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
+            self._message("Enter a prompt message for recipients with Prompt enabled.", "warning")
             return
-        self.status.set_text(f"Sending signals to {len(selected)} selected recipients…")
+        self._message(f"Sending signals to {len(selected)} selected recipients…", "success")
         def show(results):
             accepted = sum(r.success and not r.skipped for r in results)
             skipped = sum(r.skipped for r in results)
             failed = sum(not r.success for r in results)
             detail = "\n".join(f"{r.target.title} [{r.target.id}]: {r.detail}" for r in results)
-            self.status.set_text(f"Signals: {accepted} accepted, {skipped} skipped, {failed} failed.\n" + detail)
-            self.status.set_tooltip_text(detail)
+            for result in results:
+                self._message(f"{result.target.title} [{result.target.id}]: {result.detail}",
+                              "error" if not result.success else "warning" if result.skipped else "success")
+            self._message(f"Signals: {accepted} accepted, {skipped} skipped, {failed} failed.",
+                          "error" if failed else "warning" if skipped else "success")
             self.refresh_statuses()
         self._work(lambda: send_signals(selected, text, manual=True), show)
 

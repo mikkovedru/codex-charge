@@ -719,7 +719,8 @@ for an immediate send; the choices also persist for quota-reset delivery:
 - **Neither** excludes the recipient. Window recipients support Prompt only.
 
 Goal activation preserves the existing objective, budget and usage history.
-Manual sends may resume paused goals; automatic quota recovery respects intentional
+Manual sends may resume paused goals even while a prompt turn is running,
+without adding a competing empty turn; automatic quota recovery respects intentional
 pauses and skips blocked, completed, budget-limited or already-running goals.
 An independently selected Prompt still sends when the Goal action is skipped;
 a failed or unconfirmed Goal action prevents the subsequent prompt. Results for
@@ -733,7 +734,10 @@ The recipient summary and **Send signals** sit below the multiline prompt, with
 the send button on the far right. **Project** shows the name assigned in Codex;
 **Project path** retains the chat's working path. Both precede **Kind**.
 Old selections migrate to Prompt, or Prompt + Goal when old goal recovery was enabled.
-Saved changes to an active watch take effect when it is stopped and started.
+Saved changes automatically restart an active watch after a short debounce.
+The previous worker finishes first, and quota-reset delivery accounting is
+preserved. Empty selections or blank Prompt drafts suspend it until valid;
+explicitly stopping the watch cancels pending restarts.
 
 Choose targets before starting desktop watch. Local saved chats are included;
 account-wide ChatGPT history and disconnected remote hosts are not enumerated.

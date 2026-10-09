@@ -16,7 +16,7 @@ from .config import AppConfig, config_dir
 from .i18n import t
 from .pty_backend import StopEvent
 from .quota import discover_codex, fetch_quota, format_quota
-from .watch import WatchConfig, run_desktop_watch
+from .watch import WatchConfig, WatchState, run_desktop_watch
 
 from .tray_backend import prepare_backend, icon_class
 from .tray_icon import make_icon, IDLE_COLOR, RUNNING_COLOR
@@ -70,6 +70,13 @@ class TrayApp:
         self.launched_at_startup = launched_at_startup
         self._watch_error = ""
         self._watch_settings = None
+        self._watch_state = None
+        self._watch_requested = False
+        self._restart_pending = False
+        self._restart_timer = None
+        self._restart_revision = 0
+        self._queued_watch_settings = None
+        self._watch_pause_reason = ""
         self.config.apply_locale()
         self._icon: pystray.Icon | None = None
         self._proc: subprocess.Popen[bytes] | None = None
@@ -112,6 +119,7 @@ class TrayApp:
         if self._is_running():
             return
 
+        self._cancel_restart_locked()
         args = [*_resolve_cli_exe(), "run"]
         args.append("--goal" if goal else "--no-goal")
         if self.config.grace_seconds != 60:
@@ -139,13 +147,19 @@ class TrayApp:
         with self._lock:
             self._start_desktop_locked()
 
-    def _start_desktop_locked(self) -> None:
+    def _start_desktop_locked(self, *, restarting=False) -> None:
         if self._is_running():
             return
         self.config = AppConfig.load()
         if not self.config.targets():
             self.open_targets()
             return
+        if any(t.signal_actions()[0] for t in self.config.targets()) and not self.config.continue_prompt.strip():
+            raise RuntimeError("Enter a prompt message for recipients with Prompt enabled")
+        if not restarting or self._watch_state is None:
+            self._watch_state = WatchState()
+        self._watch_requested = True
+        self._watch_pause_reason = ""
         self._watch_stop = StopEvent()
         cfg = WatchConfig(
             codex_path=self.config.codex_path,
@@ -155,6 +169,7 @@ class TrayApp:
             poll_seconds=self.config.poll_seconds,
             desktop_window_titles=self.config.window_titles(),
             desktop_targets=tuple(self.config.targets()),
+            state=self._watch_state,
         )
 
         self._watch_error = ""
@@ -171,14 +186,80 @@ class TrayApp:
             finally:
                 with self._lock:
                     self._watch_thread = None
+                    if not self._restart_pending:
+                        self._watch_requested = False
                 self._set_status(False)
 
         self._watch_thread = threading.Thread(target=runner, daemon=True)
         self._watch_thread.start()
         self._set_status(self._is_running())
 
+    def _cancel_restart_locked(self):
+        self._restart_revision += 1
+        if self._restart_timer is not None:
+            self._restart_timer.cancel()
+            self._restart_timer = None
+        self._restart_pending = False
+        self._watch_requested = False
+        self._watch_pause_reason = ""
+
+    def _sync_saved_watch(self, config):
+        from .tray_control import watch_settings
+        settings = watch_settings(config)
+        with self._lock:
+            if not self._watch_requested:
+                return
+            if settings == self._watch_settings and not self._restart_pending and not self._watch_pause_reason:
+                return
+            if settings == self._queued_watch_settings and (self._restart_pending or self._watch_pause_reason):
+                return
+            self._restart_revision += 1
+            revision = self._restart_revision
+            if self._restart_timer is not None:
+                self._restart_timer.cancel()
+            self._queued_watch_settings = settings
+            self._watch_pause_reason = ""
+            self._restart_pending = True
+            # Coalesce checkbox changes and prompt keystrokes. A stopped watch
+            # never starts merely because settings were saved.
+            self._restart_timer = threading.Timer(.6, self._restart_watch, args=(revision,))
+            self._restart_timer.daemon = True
+            self._restart_timer.start()
+
+    def _restart_watch(self, revision):
+        with self._lock:
+            if revision != self._restart_revision or not self._watch_requested:
+                return
+            previous = self._watch_thread
+            self._watch_stop.set()
+        # Join outside the lock: the old worker needs it during cleanup. Even a
+        # slow delivery must finish before a replacement can send anything.
+        if previous is not None:
+            previous.join()
+        with self._lock:
+            if revision != self._restart_revision or not self._watch_requested:
+                return
+            try:
+                config = AppConfig.load()
+                targets = config.targets()
+                if not targets:
+                    self._watch_pause_reason = "Choose at least one recipient; watch will resume automatically."
+                elif any(t.signal_actions()[0] for t in targets) and not config.continue_prompt.strip():
+                    self._watch_pause_reason = "Enter a prompt message; watch will resume automatically."
+                else:
+                    discover_codex(config.codex_path)
+                    self._start_desktop_locked(restarting=True)
+            except Exception as exc:
+                self._watch_error = f"Could not apply saved watch settings: {exc}"
+                self._watch_pause_reason = self._watch_error
+                _log.exception("Automatic watch restart failed")
+            finally:
+                self._restart_pending = False
+                self._restart_timer = None
+
     def stop_service(self, _icon=None, _item=None) -> None:
         with self._lock:
+            self._cancel_restart_locked()
             self._watch_stop.set()
             proc = self._proc
         if proc is not None and proc.poll() is None:
@@ -272,7 +353,7 @@ class TrayApp:
             pystray.MenuItem(
                 t("tray.stop"),
                 self.stop_service,
-                enabled=lambda _: self._is_running(),
+                enabled=lambda _: self._is_running() or self._watch_requested,
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(t("tray.show_quota"), self.show_quota),
@@ -297,6 +378,7 @@ class TrayApp:
             self.start_desktop()
         elif command == "stop-watch":
             with self._lock:
+                self._cancel_restart_locked()
                 self._watch_stop.set()
         elif command == "reload":
             self.config = AppConfig.load()
@@ -308,9 +390,16 @@ class TrayApp:
             self.open_targets(settings=command == "open-settings")
         elif command != "status":
             raise ValueError("Unknown tray command")
+        # Polling also applies settings saved by another GUI or CLI process.
+        try:
+            self._sync_saved_watch(AppConfig.load())
+        except Exception as exc:
+            self._watch_error = f"Could not read saved watch settings: {exc}"
         thread = self._watch_thread
         alive = thread is not None and thread.is_alive()
-        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True, "gui_control": True, "per_target_signals": True,
+        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True, "gui_control": True, "per_target_signals": True, "auto_watch_restart": True,
+                "restarting": self._restart_pending, "watch_requested": self._watch_requested,
+                "watch_pause_reason": self._watch_pause_reason,
                 "stopping": alive and self._watch_stop.is_set(),
                 "cli_running": self._proc is not None and self._proc.poll() is None,
                 "launched_at_startup": self.launched_at_startup,

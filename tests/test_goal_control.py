@@ -219,8 +219,8 @@ def test_post_send_goal_verification_failure_does_not_retry(monkeypatch):
 
 @pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires the installed native Codex backend")
 @pytest.mark.parametrize("status", ["usageLimited", "paused"])
-@pytest.mark.parametrize("goal_only", [False, True])
-def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, status, goal_only):
+@pytest.mark.parametrize("goal_only,active_turn", [(False, False), (True, False), (True, True)])
+def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, monkeypatch, status, goal_only, active_turn):
     import json
     import os
     import queue
@@ -231,11 +231,26 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
     from pathlib import Path
     binary = Path("/usr/lib/chatgpt/resources/codex")
     if not binary.exists(): pytest.skip("Installed Codex backend unavailable")
-    # No external model service: any continuation can only reach this closed
-    # local port. Both backend processes and all goal data belong to the fixture.
+    # A local HTTP fixture holds a real turn open for the active-prompt case.
+    # No request can reach an external model service.
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    entered, release = threading.Event(), threading.Event()
+    class HoldRequest(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            entered.set()
+            release.wait(20)
+            self.send_response(503)
+            self.end_headers()
+        def log_message(self, *args): pass
+    http = ThreadingHTTPServer(("127.0.0.1", 0), HoldRequest) if active_turn else None
+    http_thread = threading.Thread(target=http.serve_forever, daemon=True) if http else None
+    if http_thread: http_thread.start()
+    base_url = f"http://127.0.0.1:{http.server_port}/v1" if http else "http://127.0.0.1:9/v1"
+    # Both backend processes and all goal data belong to the fixture.
     (tmp_path / "config.toml").write_text(
         'model="fixture"\nmodel_provider="fixture"\n[model_providers.fixture]\n'
-        'name="Offline fixture"\nbase_url="http://127.0.0.1:9/v1"\n'
+        f'name="Offline fixture"\nbase_url="{base_url}"\n'
         'wire_api="responses"\nrequires_openai_auth=false\n')
     class RPC:
         def __init__(self):
@@ -282,25 +297,67 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
         with sqlite3.connect(database) as db:
             db.execute("UPDATE thread_goals SET status=?,tokens_used=75,time_used_seconds=123 WHERE thread_id=?",
                        ("usage_limited" if status == "usageLimited" else "paused", thread_id))
+        active_id = None
+        if active_turn:
+            active_id = original.call("turn/start", {"threadId": thread_id,
+                "input": [{"type": "text", "text": "Hold this fixture turn", "text_elements": []}]})["turn"]["id"]
+            assert entered.wait(5), "Offline model fixture never received the turn"
         native = NativeGoals(str(tmp_path))
         native.server = control
         before = native.get(thread_id)
         assert before["status"] == status
         assert control.call("thread/loaded/list", {})["data"] == []
-        assert native.resume(thread_id, before, allow_paused=(status == "paused"))
+        if active_turn:
+            class ExistingNative:
+                def __init__(self, *_): pass
+                def __enter__(self): return native
+                def __exit__(self, *_): pass
+            class ExistingOwner:
+                def __init__(self, *args, **kwargs): pass
+                def __enter__(self): return self
+                def __exit__(self, *_): pass
+                def owner(self, thread):
+                    assert thread == thread_id
+                    return "fixture-owner"
+                def status_snapshot(self, thread, owner):
+                    current = original.call("thread/read", {"threadId": thread, "includeTurns": True})["thread"]
+                    assert current["status"]["type"] == "active"
+                    return {"task": current["status"], "goal": status}
+                def continue_goal(self, *args): pytest.fail("Started a competing empty turn")
+                def send(self, *args): pytest.fail("Sent an unwanted prompt")
+            monkeypatch.setattr(goal_control, "NativeGoals", ExistingNative)
+            monkeypatch.setattr(delivery, "DesktopIPC", ExistingOwner)
+            target = Target("thread", thread_id, "Fixture", instance=str(tmp_path),
+                endpoint=str(tmp_path / "ipc/ipc.sock"), send_prompt=False, send_goal=True)
+            result = delivery.send_signals([target], "", manual=True)[0]
+            assert result.success and not result.skipped, result.detail
+            assert "current turn continues" in result.detail
+        else:
+            assert native.resume(thread_id, before, allow_paused=(status == "paused"))
         after = original.call("thread/goal/get", {"threadId": thread_id})["goal"]
         assert after["status"] == "active"
         for key in ("threadId", "objective", "createdAt", "tokenBudget", "tokensUsed", "timeUsedSeconds"):
-            assert after[key] == before[key]
+            if active_turn and key in ("tokensUsed", "timeUsedSeconds"):
+                assert after[key] >= before[key]
+            else:
+                assert after[key] == before[key]
         assert control.call("thread/loaded/list", {})["data"] == []
-        turn = original.call("turn/start", {"threadId": thread_id,
-            "input": [] if goal_only else [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
-        assert turn["status"] == "inProgress"
+        if active_turn:
+            current = original.call("thread/read", {"threadId": thread_id, "includeTurns": True})["thread"]
+            assert current["status"]["type"] == "active"
+            assert current["turns"][-1]["id"] == active_id
+        else:
+            turn = original.call("turn/start", {"threadId": thread_id,
+                "input": [] if goal_only else [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
+            assert turn["status"] == "inProgress"
         assert original.call("thread/goal/get", {"threadId": thread_id})["goal"]["status"] == "active"
         assert control.call("thread/loaded/list", {})["data"] == []
     finally:
         original.close()
         if control is not None: control.close()
+        release.set()
+        if http:
+            http.shutdown(); http.server_close(); http_thread.join(2)
 
 
 def test_mismatched_desktop_profile_never_changes_a_goal(monkeypatch):
@@ -434,3 +491,32 @@ def test_goal_continuation_ipc_contains_no_user_message(monkeypatch):
     assert calls[0][1]["turnStart"]["request"]["input"] == []
     assert calls[0][1]["turnStart"]["context"] == {"inheritThreadSettings": True}
     assert calls[0][2]["target_client"] == "owner"
+
+
+@pytest.mark.parametrize("prompt", [False, True])
+def test_manual_goal_resumes_during_active_prompt_without_competing_empty_turn(monkeypatch, prompt):
+    state = install_recovery(monkeypatch, status="paused", task="active")
+    result = delivery.send_signals([replace(TARGET, send_prompt=prompt, send_goal=True)], "Custom", manual=True)[0]
+    assert result.success and not result.skipped and state["resumes"] == 1
+    assert state["goal"] == {**GOAL, "status": "active"}
+    assert state["sent"] == (["Custom"] if prompt else [])
+    if not prompt:
+        assert "current turn continues" in result.detail
+    # An automatic signal never overrides a pause even during an active turn.
+    state = install_recovery(monkeypatch, status="paused", task="active")
+    result = delivery.send_signals([replace(TARGET, send_prompt=False, send_goal=True)], "", manual=False)[0]
+    assert result.skipped and not state["resumes"] and not state["sent"]
+
+
+def test_active_turn_can_advance_usage_during_native_goal_resume():
+    class Growing(GoalServer):
+        def call(self, method, params):
+            if method == "thread/goal/set":
+                self.goal["tokensUsed"] += 1
+                self.goal["timeUsedSeconds"] += 1
+            return super().call(method, params)
+    before = {**GOAL, "status": "paused"}
+    server = Growing(before)
+    assert controller(server).resume("chosen", before, allow_paused=True)
+    assert server.goal["tokenBudget"] == before["tokenBudget"]
+    assert server.goal["tokensUsed"] == before["tokensUsed"] + 1

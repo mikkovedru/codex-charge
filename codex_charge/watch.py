@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .desktop_input import DEFAULT_WINDOW_TITLES
 from .targets import Target
@@ -19,6 +19,16 @@ _log = logging.getLogger("codex-charge.watch")
 
 
 @dataclass
+class WatchState:
+    """Delivery accounting retained when an active watch applies new settings."""
+    startup_checked: bool = False
+    delivered: set[str] = field(default_factory=set)
+    seen_resets: set[tuple[int, int]] = field(default_factory=set)
+    pending: bool = False
+    wake_at: float = 0
+
+
+@dataclass
 class WatchConfig:
     codex_path: str | None = None
     continue_prompt: str = "继续"
@@ -29,6 +39,7 @@ class WatchConfig:
     poll_seconds: int = 30
     desktop_window_titles: tuple[str, ...] = DEFAULT_WINDOW_TITLES
     desktop_targets: tuple[Target, ...] = ()
+    state: WatchState | None = None
 
 
 def _poll_interval(used_percent: float, default: int) -> int:
@@ -54,11 +65,7 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
     if not targets:
         _log_status("Choose signal targets first: codex-charge targets --gui")
         return 1
-    startup_checked = False
-    delivered = set()
-    seen_resets = set()
-    pending = False
-    wake_at = 0
+    state = config.state if config.state is not None else WatchState()
 
     _log_status(t("watch.started"))
 
@@ -75,25 +82,25 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
         used = max(quota.primary.used_percent, quota.secondary.used_percent if quota.secondary else 0)
 
         if exhausted:
-            startup_checked = True
+            state.startup_checked = True
             # Both short and weekly limits must recover before any recipient can
             # continue. Keep the reset identity after delivery to reject stale
             # snapshots of an already completed reset.
             reset_cycle = {(w.window_duration_mins, w.resets_at) for w in exhausted}
             next_wake = max(w.resets_at for w in exhausted) + config.grace_seconds
-            if reset_cycle - seen_resets:
-                seen_resets.update(reset_cycle)
-                delivered.clear()
-                pending = True
-                wake_at = next_wake
+            if reset_cycle - state.seen_resets:
+                state.seen_resets.update(reset_cycle)
+                state.delivered.clear()
+                state.pending = True
+                state.wake_at = next_wake
             else:
-                wake_at = max(wake_at, next_wake)
+                state.wake_at = max(state.wake_at, next_wake)
             prompt = "selected Goal / Prompt signals"
-            wake_local = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(wake_at))
+            wake_local = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.wake_at))
             _log_status(t("watch.blocked", prompt=prompt, time=wake_local))
             # Refresh quota after waiting; a passed reset timestamp alone does
             # not prove that quota is available. Keep waits bounded for shutdown.
-            stop.wait(min(60, max(5, wake_at - time.time())))
+            stop.wait(min(60, max(5, state.wake_at - time.time())))
             continue
 
         if getattr(quota, "rate_limit_reached", False):
@@ -101,26 +108,26 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
             stop.wait(30)
             continue
 
-        if not startup_checked and not pending:
-            startup_checked = True
+        if not state.startup_checked and not state.pending:
+            state.startup_checked = True
             goal_targets = [t for t in targets if t.signal_actions(config.goal_mode)[1]]
             if goal_targets:
                 candidates, errors = quota_stopped_targets(goal_targets, stop=stop)
-                startup_checked = not errors
+                state.startup_checked = not errors
                 for error in errors:
                     _log_status(error)
                 if candidates:
-                    delivered = {target.key for target in targets} - candidates
-                    pending = True
-                    wake_at = time.time() + config.grace_seconds
+                    state.delivered = {target.key for target in targets} - candidates
+                    state.pending = True
+                    state.wake_at = time.time() + config.grace_seconds
                     _log_status("Quota is available; recovering selected quota-stopped goals after the grace period.")
 
-        if not pending:
+        if not state.pending:
             _log_status(t("watch.polling", percent=used))
             stop.wait(_poll_interval(used, config.poll_seconds))
             continue
 
-        remaining = wake_at - time.time()
+        remaining = state.wake_at - time.time()
         if remaining > 0:
             stop.wait(min(60, remaining))
             continue
@@ -128,7 +135,7 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
         for target in targets:
             if stop.is_set():
                 break
-            if target.key in delivered:
+            if target.key in state.delivered:
                 continue
             if target.send_goal is not None or target.send_prompt is not None:
                 result = send_signals([target], config.continue_prompt,
@@ -140,10 +147,10 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
                 result = deliver_targets([target], config.continue_prompt,
                     enter_presses=config.enter_presses, key_delay=config.key_delay)[0]
             if result.success or not result.retryable:
-                delivered.add(target.key)
+                state.delivered.add(target.key)
             _log_status(f"{target.title} [{target.id}]: {result.detail}")
 
-        pending = any(target.key not in delivered for target in targets)
+        state.pending = any(target.key not in state.delivered for target in targets)
         stop.wait(30)
 
     return 0

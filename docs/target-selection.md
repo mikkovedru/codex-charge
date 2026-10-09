@@ -115,6 +115,25 @@ Disconnected saved selections remain listed with unavailable statuses.
 The public runtime and goal states are documented in the
 [Codex App Server reference](https://learn.chatgpt.com/docs/app-server).
 
+Task and goal cells are colored and explain the current state and all supported
+states on hover. **Running** (active) is green; **Waiting for approval** and
+**Waiting for input** are yellow; **Error** is red. **Idle** and **Not loaded**
+use normal text, and **Unavailable** is yellow. A task can need both approval
+and input simultaneously. **Active** is also accepted as a green display label.
+
+For goals, **Active** is green, **Paused** and **Usage limited** are yellow,
+**Budget limited** and **Blocked** are red, **No goal** uses normal text, and
+**Unavailable** is yellow. **Complete** uses normal text preceded by a green
+checkmark. Persisted `usage_limited` and `budget_limited` are displayed as
+**Usage limited** and **Budget limited**.
+
+The multi-line status area scrolls and retains recent messages. Warnings are
+yellow, errors red, and signal sending/results green. Saving, startup toggles
+and watch start/restart messages use the normal theme text color. Mixed sends
+show each recipient's result in its own color, with a red summary for failures
+or yellow for skipped actions. Long logs are bounded and new messages do not
+move the scroll position while you are reading older diagnostics.
+
 Live quota shows usage, local reset dates, and a countdown for each limit.
 Quota refreshes automatically every minute and can be refreshed manually; the
 countdown updates every second. A failed refresh keeps the last known values
@@ -129,9 +148,13 @@ origin; enabled older entries are migrated when the updated tray starts.
 **Settings…** opens a GTK editor for language, default mode, Codex CLI path and
 arguments, reset grace, polling interval, and startup registration. The tray's
 Settings menu opens this editor too. Prompt text and per-recipient signal choices remain visible
-in the main window. Saved settings and recipients apply on the next watch start;
-a running watch explicitly indicates when its settings differ from the saved
-ones. Stop and start it to apply changes. Configuration is saved atomically.
+in the main window. Saved settings and recipients automatically restart an active watch after a
+600 ms debounce. The previous worker finishes before its replacement starts;
+quota-reset identities, accepted/uncertain recipients and pending retries survive
+the restart. Prompt typing and checkbox changes coalesce into one update.
+An empty selection or blank Prompt draft suspends the watch until settings become
+valid. Stop cancels pending restarts; saving while Off does not start a watch.
+Configuration is saved atomically.
 
 On Linux, the picker and tray communicate through a private Codex Charge control
 socket in the configuration directory. Only same-user clients are accepted,
@@ -173,9 +196,13 @@ continuation through the desktop's current owner. Goal-only uses a turn with an
 empty input list, so no user prompt is added. With both choices enabled, verified
 Goal activation is followed by one turn carrying the selected prompt.
 
-Manual sends may activate paused goals. Automatic recovery leaves intentional
+Manual sends may activate paused goals even during an active prompt turn.
+Goal-only changes the native goal state and lets that existing turn continue; it
+does not submit another empty turn. Both still activates the goal before its
+independently selected prompt. Activation verification allows usage to advance
+during a running turn, but rejects accounting resets and budget changes. Automatic recovery leaves intentional
 pauses alone. Goal actions skip missing, blocked, budget-limited, complete or
-already-running goals. When Prompt is also selected, skipped Goal actions are
+already-running goals during automatic recovery. When Prompt is also selected, skipped Goal actions are
 reported and the independent Prompt still sends. Failed or uncertain Goal
 activation prevents prompt fallback. Ambiguous continuation acknowledgement is
 not retried automatically in the same reset. Window identities cannot identify
@@ -205,7 +232,7 @@ Native recovery rechecks the current goal on confirmed retries, so an already
 activated goal is not activated again. A timeout or connection loss after native
 activation or turn submission is **uncertain**, so it is not automatically
 retried in the same reset; check that chat before retrying manually. Individual
-results appear in logs and in the selector's status tooltip.
+results appear in logs and in the selector's scrollable message area.
 
 ## Validation
 

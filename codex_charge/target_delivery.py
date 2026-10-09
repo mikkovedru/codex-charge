@@ -91,7 +91,7 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                 task = snapshot.get("task")
                 if not isinstance(task, dict) or task.get("type") not in {"active", "idle", "systemError", "notLoaded"}:
                     raise RuntimeError("Current task status is unavailable; no signal sent")
-                if task["type"] == "active":
+                if task["type"] == "active" and not manual:
                     return DeliveryResult(target, True, "Skipped — task is already running or waiting for input", skipped=True)
                 if goal is None and snapshot.get("goal") == "complete":
                     return DeliveryResult(target, True, "Skipped — goal is complete", skipped=True)
@@ -113,7 +113,7 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                         return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
                 if send_prompt:
                     desktop.send(target.id, text, owner)
-                else:
+                elif task["type"] != "active":
                     desktop.continue_goal(target.id, owner)
                 if goal is not None:
                     try:
@@ -125,7 +125,9 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                     except Exception as exc:
                         raise DeliveryUncertain("Continuation accepted, but the resulting goal state was not confirmed; check this chat") from exc
                 if not send_prompt:
-                    return DeliveryResult(target, True, "Goal continuation accepted; no prompt sent")
+                    return DeliveryResult(target, True,
+                        "Native goal activation verified; current turn continues, no prompt sent" if task["type"] == "active" else
+                        "Goal continuation accepted; no prompt sent")
                 return DeliveryResult(target, True,
                     "Native goal activation verified; continuation accepted" if resumed else
                     "No goal; continuation accepted" if goal is None else "Goal already active; continuation accepted")

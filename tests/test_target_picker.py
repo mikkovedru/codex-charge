@@ -50,7 +50,7 @@ def check():
     if window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         return True
     try:
-        assert not window.save_state.get_visible()
+        assert not hasattr(window, "save_state")
         assert "42%" in window.quota_label.get_text()
         assert "Weekly" in window.quota_label.get_text() and "resets" in window.quota_label.get_text()
         assert "started at login: Yes" in window.startup_label.get_text()
@@ -64,7 +64,49 @@ def check():
         assert siblings[siblings.index(window.send_row)-1] is window.prompt_scroller.get_parent()
         assert isinstance(window.signal, Gtk.TextView)
         assert window.signal.get_wrap_mode() == Gtk.WrapMode.WORD_CHAR
-        assert not window.status.get_visible()
+        assert isinstance(window.status, Gtk.ScrolledWindow)
+        assert window.status.get_allocated_height() >= 96 and not window.status.view.get_editable()
+        from codex_charge.status_display import COLORS, TASK_STATES, GOAL_STATES, status_level
+        for level in ("normal", "warning", "error", "success"):
+            window._message("Message " + level, level)
+            assert window.status.latest_level == level
+            last = window.status.buffer.get_end_iter()
+            last.backward_char()
+            assert [tag.get_property("name") for tag in last.get_tags()] == [level]
+            assert window.status.buffer.get_tag_table().lookup(level).get_property("foreground-set") == (level != "normal")
+        window._message("\n".join("Long diagnostic line " + str(i) for i in range(60)), "error")
+        while Gtk.events_pending(): Gtk.main_iteration_do(False)
+        adjustment = window.status.get_vadjustment()
+        assert adjustment.get_upper() > adjustment.get_page_size()
+        assert window.get_allocated_height() < 1000
+        window._message("\n".join("Bounded line " + str(i) for i in range(1100)))
+        assert window.status.buffer.get_line_count() <= 1000
+        for index, states in ((10, TASK_STATES), (11, GOAL_STATES)):
+            column = window.table.get_columns()[3 if index == 10 else 4]
+            renderer = column.get_cells()[0]
+            original = window.store[0][index]
+            for value in states:
+                window.store[0][index] = value
+                window._status_cell(column, renderer, window.store, window.store[0].iter, index)
+                assert renderer.get_property("foreground-set") == (status_level(value, goal=index == 11) != "normal")
+                if value == "Complete":
+                    assert renderer.get_property("text") == "✓ Complete"
+                    attributes = renderer.get_property("attributes")
+                    attr_iterator = attributes.get_iterator()
+                    attrs = attr_iterator.get_attrs()
+                    assert len(attrs) == 1 and attrs[0].start_index == 0 and attrs[0].end_index == 3
+                # Exercise the actual hover hit-testing against rendered cells.
+                cell = window.table.get_cell_area(Gtk.TreePath.new_from_string("0"), column)
+                x, y = window.table.convert_bin_window_to_widget_coords(cell.x + 8, cell.y + cell.height//2)
+                class Tooltip:
+                    def set_text(self, value): self.text = value
+                tooltip = Tooltip()
+                original_cell = window.table.set_tooltip_cell
+                window.table.set_tooltip_cell = lambda *args: None
+                assert window._tooltip(window.table, x, y, False, tooltip)
+                window.table.set_tooltip_cell = original_cell
+                assert value in tooltip.text and "statuses" in tooltip.text
+            window.store[0][index] = original
         assert "watch-off" in window.watch_label.get_style_context().list_classes()
         color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
         assert color.red > .7 and color.green < .2 and color.alpha == 1
@@ -77,7 +119,7 @@ def check():
         assert len(window.filtered) == 1
         window._toggle(None, "0")
         assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
-        assert not window.dirty() and not window.save_state.get_visible()
+        assert not window.dirty() and not hasattr(window, "save_state")
         assert [c.get_title() for c in window.table.get_columns()][:8] == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project", "Project path", "Kind"]
         window.table.get_selection().select_path("0")
         target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
@@ -105,7 +147,7 @@ def check():
         idle()
         window.toggle_watch()
         idle()
-        assert "Restart the tray" in window.status.get_text()
+        assert "Restart the tray" in window.status.latest_text
         assert "start-watch" not in commands
         window.search.set_text("")
         window.filtered.refilter()
@@ -115,7 +157,7 @@ def check():
         assert {t.id for t in saved.targets()} == {"alpha", "beta"}
         assert saved.continue_prompt == "Continue"
         assert all(t.send_prompt and not t.send_goal for t in saved.targets())
-        assert not window.dirty() and not window.save_state.get_visible()
+        assert not window.dirty() and not hasattr(window, "save_state")
         window.signal_buffer.set_text("First line\nSecond line\n\nFinal line")
         assert AppConfig.load().continue_prompt == "First line\nSecond line\n\nFinal line"
         assert window._prompt_text() == AppConfig.load().continue_prompt
@@ -139,9 +181,10 @@ def check():
         assert window.selected[beta.key].signal_actions() == (False, True)
         assert not window.dirty()
         window.send()
+        assert window.status.latest_level == "success"
         idle()
         assert deliveries == [([("beta", False, True), ("alpha", True, False)], "Continue", True)]
-        assert "Signals: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
+        assert "Signals: 2 accepted, 0 skipped, 0 failed" in window.status.latest_text
         window.signal_buffer.set_text("First line\nSecond line\n\nFinal line")
         window.send()
         idle()
@@ -153,7 +196,7 @@ def check():
         assert not window.dirty()
         window.toggle_watch()
         idle()
-        assert "Restart the tray" in window.status.get_text()
+        assert "Restart the tray" in window.status.latest_text
         assert "start-watch" not in commands
         runtime["per_target_signals"] = True
         # Blank text is valid for Goal-only recipients, and invalid for Prompt.
@@ -164,7 +207,7 @@ def check():
         assert deliveries[-1] == ([("beta", False, True)], " ", True)
         window._toggle(None, "0", "send_prompt")
         window.send()
-        assert "Enter a prompt" in window.status.get_text()
+        assert "Enter a prompt" in window.status.latest_text and window.status.latest_level == "warning"
         window.signal_buffer.set_text("Continue")
         idle()
         # Dashboard controls precede their own status text.
@@ -184,7 +227,7 @@ def check():
         target_ui.set_autostart = lambda _: (_ for _ in ()).throw(OSError("startup write failed"))
         window.startup_toggle.set_active(True)
         idle()
-        assert "startup write failed" in window.status.get_text()
+        assert "startup write failed" in window.status.latest_text and window.status.latest_level == "error"
         assert not window.startup_toggle.get_active() and not AppConfig.load().autostart
         target_ui.set_autostart = original_autostart
         # A failed automatic refresh must not show the last statuses as live.
@@ -192,7 +235,8 @@ def check():
         window.refresh_statuses()
         idle()
         assert all(row[10:12] == ["Unavailable", "Unavailable"] for row in window.store)
-        assert "disconnected" in window.inventory_status.get_text()
+        assert "failed" in window.inventory_status.get_text()
+        assert "disconnected" in window.status.latest_text and window.status.latest_level == "error"
         assert not window.dirty()
         from codex_charge.settings_ui import SettingsDialog
         dialog = SettingsDialog(window)
@@ -220,7 +264,7 @@ def check():
         changed.save()
         window.poll_runtime()
         idle()
-        assert "restart" in window.watch_label.get_text()
+        assert "applying saved changes automatically" in window.watch_label.get_text()
         runtime["stopping"] = True
         window.poll_runtime()
         idle()
@@ -246,25 +290,26 @@ def check():
         AppConfig.save = lambda _: (_ for _ in ()).throw(OSError("disk unavailable <test>"))
         window._toggle(None, "1", "send_prompt")
         assert AppConfig.load().desktop_targets == before
-        assert window.dirty() and window.save_state.get_visible() and "Could not save automatically" in window.save_state.get_text()
-        assert "<test>" in window.save_state.get_text()
+        assert window.dirty() and window.status.latest_level == "error" and "Could not save automatically" in window.status.latest_text
+        assert "<test>" in window.status.latest_text
         AppConfig.save = original_save
         window.poll_runtime()
         idle()
-        assert not window.dirty() and not window.autosave_error and not window.save_state.get_visible()
+        assert not window.dirty() and not window.autosave_error and not hasattr(window, "save_state")
         assert {t.id: t.signal_actions() for t in AppConfig.load().targets()}["beta"] == (True, True)
         changed = AppConfig.load()
         changed.continue_prompt = "External edit"
         changed.save()
         window.poll_runtime()
         idle()
-        assert window.dirty() and "differ from saved settings" in window.save_state.get_text()
+        assert window.dirty() and window.status.latest_level == "warning" and "differ from saved settings" in window.status.latest_text
         assert AppConfig.load().continue_prompt == "External edit"
         target_ui.fetch_quota = lambda _: (_ for _ in ()).throw(RuntimeError("offline"))
         window.refresh_quota()
         idle()
         assert "42%" in window.quota_label.get_text()
-        assert "Latest refresh failed: offline" in window.quota_label.get_text()
+        assert "Latest refresh failed" in window.quota_label.get_text()
+        assert "offline" in window.status.latest_text and window.status.latest_level == "error"
     except Exception as exc:
         import traceback
         errors.append(traceback.format_exc())

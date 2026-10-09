@@ -73,3 +73,25 @@ def test_cli_reselection_preserves_existing_signal_choices(monkeypatch, capsys):
     monkeypatch.setattr(targets, 'discover_targets', lambda: targets.Inventory([replace(saved, title='New title')]))
     assert cli.main(['targets', '--select', 'chosen', '--json']) == 0
     assert AppConfig.load().targets() == [replace(saved, title='New title')]
+
+
+def test_watch_restart_preserves_successes_and_retries_confirmed_failure(monkeypatch):
+    targets = tuple(Target('thread', name, name, send_prompt=True, send_goal=False) for name in ('a', 'b'))
+    state = watch.WatchState(startup_checked=True, delivered={targets[0].key},
+                             seen_resets={(300, 0)}, pending=True)
+    monkeypatch.setattr(watch, 'discover_codex', lambda _: 'offline')
+    monkeypatch.setattr(watch, 'fetch_quota', lambda _: Quota('test', RateWindow(0, 300, 0), None, False))
+    calls = []
+    def send(targets, text, **kwargs):
+        calls.append((targets[0].id, text))
+        return [DeliveryResult(targets[0], len(calls) == 2, 'fixture')]
+    monkeypatch.setattr(watch, 'send_signals', send)
+    class Stop:
+        stopped = False
+        def is_set(self): return self.stopped
+        def wait(self, seconds): self.stopped = True
+    watch.run_desktop_watch(watch.WatchConfig(desktop_targets=targets, continue_prompt='Old', state=state), Stop())
+    assert state.pending and state.delivered == {targets[0].key}
+    watch.run_desktop_watch(watch.WatchConfig(desktop_targets=targets, continue_prompt='New', state=state), Stop())
+    assert calls == [('b', 'Old'), ('b', 'New')]
+    assert not state.pending and state.delivered == {target.key for target in targets}

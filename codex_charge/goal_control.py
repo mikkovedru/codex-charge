@@ -83,8 +83,11 @@ class NativeGoals:
                     raise ValueError("Goal did not become active")
                 if any(goal.get(k) != current.get(k) for k in identity):
                     raise ValueError("Goal identity or budget changed")
-                if any(goal.get(k) != current.get(k) for k in ("tokensUsed", "timeUsedSeconds")):
-                    raise ValueError("Goal accounting changed during resume")
+                # A concurrently running turn may legitimately advance usage.
+                # Reject resets/decreases, while preserving identity and budget.
+                if any(not isinstance(goal.get(k), (int, float)) or goal[k] < current[k]
+                       for k in ("tokensUsed", "timeUsedSeconds")):
+                    raise ValueError("Goal accounting decreased during resume")
         except Exception as exc:
             raise DeliveryUncertain("Native goal activation could not be verified; no continuation was sent") from exc
         return True

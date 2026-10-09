@@ -27,6 +27,7 @@ def test_terminal_arguments(monkeypatch):
 
 
 def test_autostart_checkbox(monkeypatch):
+    monkeypatch.setattr(tray, "is_autostart_enabled", lambda: False)
     monkeypatch.setattr(tray, "sync_autostart", lambda enabled: None)
     app = tray.TrayApp()
     item = tray.pystray.MenuItem("Autostart", lambda *_: None, checked=lambda _: app.config.autostart)
