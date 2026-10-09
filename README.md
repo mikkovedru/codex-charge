@@ -709,7 +709,11 @@ Enable **Resume quota-stopped goals when quota recovers** for verified native
 recovery of selected Linux chat IDs. Each recovery preserves the existing goal
 and accounting, skips paused/completed/blocked/budget-limited goals and busy
 tasks, and sends Signal text after activation. Window recipients require this
-option to be off. **Send signal now** always sends Signal text. Starting watch
+option to be off. With this option enabled, the manual button becomes
+**Resume goals now**: it also resumes paused goals through the native API,
+verifies activation, then sends Signal text to continue work. The result for
+each chat appears below the button; skipped goals are reported separately.
+With the option disabled, **Send signal now** sends only Signal text. Starting watch
 after quota has recovered also recovers selected usage-limited goals.
 Saved changes to an active watch take effect when it is stopped and started.
 

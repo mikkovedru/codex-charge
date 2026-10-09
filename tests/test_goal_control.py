@@ -111,7 +111,8 @@ def install_recovery(monkeypatch, *, status="usageLimited", task="systemError", 
         def __enter__(self): return self
         def __exit__(self, *args): pass
         def get(self, thread): return deepcopy(state["goal"])
-        def resume(self, thread, expected):
+        def resume(self, thread, expected, *, allow_paused=False):
+            assert expected["status"] == "usageLimited" or allow_paused
             state["resumes"] += 1
             state["goal"]["status"] = "active"
             return True
@@ -213,7 +214,8 @@ def test_post_send_goal_verification_failure_does_not_retry(monkeypatch):
 
 
 @pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires the installed native Codex backend")
-def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path):
+@pytest.mark.parametrize("status", ["usageLimited", "paused"])
+def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, status):
     import json
     import os
     import queue
@@ -273,13 +275,14 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
         # Seed a quota-stopped fixture; production code never writes SQLite.
         database = next(tmp_path.glob("goals_*.sqlite"))
         with sqlite3.connect(database) as db:
-            db.execute("UPDATE thread_goals SET status='usage_limited',tokens_used=75,time_used_seconds=123 WHERE thread_id=?", (thread_id,))
+            db.execute("UPDATE thread_goals SET status=?,tokens_used=75,time_used_seconds=123 WHERE thread_id=?",
+                       ("usage_limited" if status == "usageLimited" else "paused", thread_id))
         native = NativeGoals(str(tmp_path))
         native.server = control
         before = native.get(thread_id)
-        assert before["status"] == "usageLimited"
+        assert before["status"] == status
         assert control.call("thread/loaded/list", {})["data"] == []
-        assert native.resume(thread_id, before)
+        assert native.resume(thread_id, before, allow_paused=(status == "paused"))
         after = original.call("thread/goal/get", {"threadId": thread_id})["goal"]
         assert after["status"] == "active"
         for key in ("threadId", "objective", "createdAt", "tokenBudget", "tokensUsed", "timeUsedSeconds"):
@@ -338,3 +341,36 @@ def test_unavailable_profile_is_checked_once_per_startup_batch(monkeypatch):
     monkeypatch.setattr(goal_control, "NativeGoals", Missing)
     candidates, errors = goal_control.quota_stopped_targets([TARGET, replace(TARGET, id="another")])
     assert not candidates and len(errors) == 2 and calls == [TARGET.instance]
+
+
+def test_manual_action_resumes_paused_goal_preserving_accounting(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    result = delivery.recover_target(TARGET, "Custom signal", manual=True)
+    assert result.success and not result.skipped and "activation verified" in result.detail
+    assert state["resumes"] == 1 and state["sent"] == ["Custom signal"]
+    assert state["goal"] == {**GOAL, "status": "active"}
+
+
+def test_native_paused_resume_requires_explicit_permission_and_unchanged_status():
+    paused = {**GOAL, "status": "paused"}
+    server = GoalServer(paused)
+    assert not controller(server).resume("chosen", paused)
+    assert controller(server).resume("chosen", paused, allow_paused=True)
+    # A fresh pause after a usage-limited snapshot is a new user decision.
+    server = GoalServer(paused)
+    assert not controller(server).resume("chosen", GOAL, allow_paused=True)
+    assert not any(method.endswith("/set") for method, _ in server.calls)
+
+
+@pytest.mark.parametrize("status", ["blocked", "budgetLimited", "complete"])
+def test_manual_recovery_respects_other_protected_states(monkeypatch, status):
+    state = install_recovery(monkeypatch, status=status)
+    result = delivery.recover_target(TARGET, "Continue", manual=True)
+    assert result.success and result.skipped and status in result.detail
+    assert not state["sent"] and not state["resumes"]
+
+
+def test_manual_empty_signal_never_activates_goal(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused")
+    assert not delivery.recover_target(TARGET, " ", manual=True).success
+    assert not state["sent"] and not state["resumes"]

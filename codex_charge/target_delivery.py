@@ -21,6 +21,7 @@ class DeliveryResult:
     success: bool
     detail: str
     retryable: bool = True
+    skipped: bool = False
 
 
 def open_target(target):
@@ -58,11 +59,11 @@ def _send_thread(target, text):
         desktop.send(target.id, text, _owner_for_delivery(desktop, target))
 
 
-def recover_target(target, text, *, enter_presses=1, key_delay=.12):
-    """Resume only quota-stopped goals, then continue in the desktop owner.
+def recover_target(target, text, *, manual=False, enter_presses=1, key_delay=.12):
+    """Activate quota-stopped goals, then continue in the desktop owner.
 
-    This is automatic quota recovery. Manual Send signal now remains an explicit
-    text send. Window identities cannot safely identify an individual goal.
+    Explicit manual recovery may also resume paused goals. Automatic recovery
+    respects pauses. Window identities cannot identify an individual goal.
     """
     if target.kind != "thread":
         return DeliveryResult(target, False,
@@ -75,8 +76,11 @@ def recover_target(target, text, *, enter_presses=1, key_delay=.12):
             raise ValueError("Signal text cannot be empty")
         with NativeGoals(target.instance) as goals:
             goal = goals.get(target.id)
-            if goal is not None and goal["status"] in {"paused", "blocked", "budgetLimited", "complete"}:
-                return DeliveryResult(target, True, f"Skipped — goal is {goal['status']}")
+            protected = {"blocked", "budgetLimited", "complete"}
+            if not manual:
+                protected.add("paused")
+            if goal is not None and goal["status"] in protected:
+                return DeliveryResult(target, True, f"Skipped — goal is {goal['status']}", skipped=True)
             if not target.endpoint:
                 raise RuntimeError("Desktop routing unavailable; open Codex and refresh targets")
             with DesktopIPC(target.endpoint, timeout=5) as desktop:
@@ -84,27 +88,27 @@ def recover_target(target, text, *, enter_presses=1, key_delay=.12):
                 snapshot = desktop.status_snapshot(target.id, owner)
                 task = snapshot.get("task")
                 if not isinstance(task, dict) or task.get("type") not in {"active", "idle", "systemError", "notLoaded"}:
-                    raise RuntimeError("Current task status is unavailable; no automatic signal sent")
+                    raise RuntimeError("Current task status is unavailable; no signal sent")
                 if task["type"] == "active":
-                    return DeliveryResult(target, True, "Skipped — task is already running or waiting for input")
+                    return DeliveryResult(target, True, "Skipped — task is already running or waiting for input", skipped=True)
                 if goal is None and snapshot.get("goal") == "complete":
-                    return DeliveryResult(target, True, "Skipped — goal is complete")
+                    return DeliveryResult(target, True, "Skipped — goal is complete", skipped=True)
                 resumed = False
-                if goal is not None and goal["status"] == "usageLimited":
-                    resumed = goals.resume(target.id, goal)
+                if goal is not None and goal["status"] in {"usageLimited", "paused"}:
+                    resumed = goals.resume(target.id, goal, allow_paused=manual)
                     if not resumed:
-                        return DeliveryResult(target, True, "Skipped — goal changed before recovery")
+                        return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
                 else:
                     # Respect a pause or replacement that occurred during the
                     # owner/status lookup even when this began as a normal send.
                     fresh = goals.get(target.id)
                     if fresh is not None and fresh["status"] != "active":
-                        return DeliveryResult(target, True, f"Skipped — goal is {fresh['status']}")
+                        return DeliveryResult(target, True, f"Skipped — goal is {fresh['status']}", skipped=True)
                     if goal is None and fresh is not None:
-                        return DeliveryResult(target, True, "Skipped — a new goal appeared before recovery")
+                        return DeliveryResult(target, True, "Skipped — a new goal appeared before recovery", skipped=True)
                     if goal is not None and (fresh is None or fresh.get("createdAt") != goal.get("createdAt")
                             or fresh.get("objective") != goal.get("objective")):
-                        return DeliveryResult(target, True, "Skipped — goal changed before recovery")
+                        return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
                 desktop.send(target.id, text, owner)
                 if goal is not None:
                     try:
@@ -116,7 +120,8 @@ def recover_target(target, text, *, enter_presses=1, key_delay=.12):
                     except Exception as exc:
                         raise DeliveryUncertain("Continuation accepted, but the resulting goal state was not confirmed; check this chat") from exc
                 return DeliveryResult(target, True,
-                    "Native goal activation verified; continuation accepted" if resumed else "Continuation accepted")
+                    "Native goal activation verified; continuation accepted" if resumed else
+                    "No goal; continuation accepted" if goal is None else "Goal already active; continuation accepted")
     except DeliveryUncertain as exc:
         return DeliveryResult(target, False, str(exc), retryable=False)
     except Exception as exc:

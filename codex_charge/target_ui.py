@@ -16,7 +16,7 @@ from .config import AppConfig, config_path
 from .autostart import is_autostart_enabled
 from .quota import discover_codex, fetch_quota
 from . import tray_control
-from .target_delivery import deliver_targets, open_target
+from .target_delivery import deliver_targets, open_target, recover_target
 from .targets import Target, discover_targets
 
 
@@ -104,7 +104,7 @@ class TargetPicker(Gtk.Window):
         prompt.pack_start(self.signal, True, True, 0)
         box.pack_start(prompt, False, False, 0)
         self.goal = Gtk.CheckButton(label="Resume quota-stopped goals when quota recovers")
-        self.goal.set_tooltip_text("Automatic recovery for chat-ID targets: reactivate usage-limited goals through Codex's native API, verify the goal, then send your Signal text. Paused, blocked, complete, budget-limited, and already-running goals are left alone. No-goal chats receive Signal text. Window targets require this option to be off. Also recovers selected usage-limited goals when the watch starts after quota has returned. Send signal now always sends Signal text.")
+        self.goal.set_tooltip_text("Automatic recovery for chat-ID targets: reactivate usage-limited goals through Codex's native API, verify the goal, then send your Signal text. Paused, blocked, complete, budget-limited, and already-running goals are left alone. No-goal chats receive Signal text. Window targets require this option to be off. Also recovers selected usage-limited goals when the watch starts after quota has returned. With this option enabled, Resume goals now also resumes paused goals explicitly, verifies activation, then sends Signal text. Otherwise Send signal now sends only text.")
         self.goal.set_active(self.config.goal_mode)
         self.signal.connect("changed", lambda _: self._summary())
         self.goal.connect("toggled", lambda _: self._summary())
@@ -121,6 +121,8 @@ class TargetPicker(Gtk.Window):
             button.connect("clicked", action)
             buttons.pack_start(button, False, False, 0)
             self.buttons.append(button)
+            if action == self.send:
+                self.send_button = button
         box.pack_start(buttons, False, False, 0)
         self.connect("delete-event", lambda *_: self.busy)
         self.connect("destroy", self._destroy)
@@ -166,6 +168,7 @@ class TargetPicker(Gtk.Window):
         return self._signature(self.selected.values(), self.signal.get_text(), self.goal.get_active()) != self.saved_signature
 
     def _summary(self):
+        self.send_button.set_label("Resume goals now" if self.goal.get_active() else "Send signal now")
         detail = " Native goal recovery requires chat-ID targets; turn it off to use window recipients." if self.goal.get_active() and any(t.kind != "thread" for t in self.selected.values()) else ""
         self.summary.set_text(f"{len(self.selected)} target(s) selected. Chat signals go to those IDs; window signals go to their current chat." + detail)
         self.summary.set_line_wrap(True)
@@ -459,13 +462,24 @@ class TargetPicker(Gtk.Window):
             return
         selected = list(self.selected.values())
         text = self.signal.get_text()
-        self.status.set_text(f"Sending to {len(selected)} selected targets…")
+        if not text.strip():
+            self.status.set_text("Enter a signal before sending.")
+            return
+        native = self.goal.get_active()
+        if native and any(t.kind != "thread" for t in selected):
+            self.status.set_text("Native goal recovery requires chat-ID recipients. Select chats or turn goal recovery off.")
+            return
+        self.status.set_text(f"{'Resuming goals' if native else 'Sending signal'} for {len(selected)} selected targets…")
         def show(results):
-            accepted = sum(r.success for r in results)
+            accepted = sum(r.success and not r.skipped for r in results)
+            skipped = sum(r.skipped for r in results)
+            failed = sum(not r.success for r in results)
             detail = "\n".join(f"{r.target.title} [{r.target.id}]: {r.detail}" for r in results)
-            self.status.set_text(f"Signal accepted by {accepted}/{len(results)} targets. Hover here for each result.")
+            self.status.set_text(f"{'Goal recovery' if native else 'Signal'}: {accepted} accepted, {skipped} skipped, {failed} failed.\n" + detail)
             self.status.set_tooltip_text(detail)
-        self._work(lambda: deliver_targets(selected, text), show)
+            self.refresh_statuses()
+        self._work(lambda: [recover_target(t, text, manual=True) for t in selected]
+                   if native else deliver_targets(selected, text), show)
 
 
 def main(*, settings=False):

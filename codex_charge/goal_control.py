@@ -55,11 +55,14 @@ class NativeGoals:
             raise ValueError("Codex returned an invalid goal identity or status")
         return goal
 
-    def resume(self, thread_id, expected):
+    def resume(self, thread_id, expected, *, allow_paused=False):
         # Recheck after desktop owner discovery, which can take time. A goal
-        # edited, paused, cleared or replaced in the meantime is left alone.
+        # edited, cleared or replaced in the meantime is left alone. Only an
+        # explicit manual action may resume a goal already observed as paused.
         current = self.get(thread_id)
-        if current is None or current.get("status") != "usageLimited":
+        allowed = {"usageLimited", "paused"} if allow_paused else {"usageLimited"}
+        if (current is None or current.get("status") not in allowed
+                or current.get("status") != expected.get("status")):
             return False
         identity = ("threadId", "objective", "createdAt", "tokenBudget")
         if any(current.get(k) != expected.get(k) for k in identity):

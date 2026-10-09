@@ -54,8 +54,10 @@ Open **Choose signal targets…** in the tray, or run `codex-charge gui`, `codex
 The root `codex-charge --help` lists both GUI command forms. A Linux release
 contains the CLI, tray, and dedicated GUI launcher; keep them together.
 Search by title, ID, project, PID or deep link. Check several rows, edit the signal,
-and use **Save selection** for quota-reset delivery. **Send signal now** sends the
-visible text to the checked rows. **Open selected row** opens a chat without sending.
+and use **Save selection** for quota-reset delivery. With goal recovery disabled,
+**Send signal now** sends the visible text to the checked rows. With recovery
+enabled, **Resume goals now** activates paused or quota-stopped goals first.
+**Open selected row** opens a chat without sending.
 Metadata columns can be resized and scrolled; hovering a row shows full values.
 
 The dashboard explicitly marks the selection and signal as **Saved** or
@@ -151,13 +153,18 @@ confirms the resulting state. No `/goal resume` text is injected. A completed
 goal may legitimately finish during continuation; unverified state after an
 accepted turn is reported as uncertain and is not automatically retried.
 
-**Paused**, **blocked**, **budgetLimited**, and **complete** goals are skipped.
+Automatic recovery skips **paused**, **blocked**, **budgetLimited**, and
+**complete** goals.
 Running tasks, including those waiting for approval or user input, are skipped.
 Chats with no goal and idle active goals use the normal Signal text. A goal that
 changes while discovery is in progress is left alone. A missing native control
 source fails visibly instead of assuming there is no goal or sending a slash
 command. Window recipients cannot identify a goal and require goal recovery to
-be off; manual **Send signal now** always sends the Signal text field.
+be off. With goal recovery enabled, manual **Resume goals now** also activates
+paused goals through the same native API before sending Signal text. Automatic
+quota recovery continues to respect intentional pauses. With the option off,
+**Send signal now** sends only the Signal text field. The GUI reports accepted,
+skipped and failed targets separately and refreshes their statuses after sending.
 
 This applies on every quota recovery, replacing the old once-per-watch first
 message behavior. Starting a watch after quota has recovered also finds selected

@@ -10,6 +10,7 @@ def test_picker_filters_selects_and_saves():
     result = subprocess.run([sys.executable, "-c", r'''
 from codex_charge import target_ui
 from codex_charge.targets import Inventory, Target
+from codex_charge.target_delivery import DeliveryResult
 from codex_charge.config import AppConfig, config_dir
 from codex_charge.quota import Quota, RateWindow
 from codex_charge import autostart
@@ -102,7 +103,38 @@ def check():
         assert window.dirty()
         window.signal.set_text("Continue")
         assert not window.dirty()
+        # Manual sends must honor the CURRENT checkbox, even before saving.
+        deliveries = []
+        def send_text(targets, text):
+            deliveries.append(("text", [t.id for t in targets], text))
+            return [DeliveryResult(t, True, "Signal accepted") for t in targets]
+        def resume_goal(target, text, *, manual=False):
+            deliveries.append(("goal", target.id, text, manual))
+            return DeliveryResult(target, True, "Native goal activation verified; continuation accepted")
+        target_ui.deliver_targets = send_text
+        target_ui.recover_target = resume_goal
+        assert window.send_button.get_label() == "Send signal now"
+        window.send()
+        idle()
+        assert deliveries == [("text", [t.id for t in window.selected.values()], "Continue")]
+        deliveries.clear()
         window.goal.set_active(True)
+        assert window.send_button.get_label() == "Resume goals now" and window.dirty()
+        window.send()
+        idle()
+        assert {entry[1] for entry in deliveries} == {"alpha", "beta"}
+        assert all(entry[0] == "goal" and entry[2:] == ("Continue", True) for entry in deliveries)
+        assert "Goal recovery: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
+        assert "activation verified" in window.status.get_text()
+        target_ui.recover_target = lambda target, text, **kw: DeliveryResult(target, True, "Skipped — goal is complete", skipped=True)
+        window.send()
+        idle()
+        assert "0 accepted, 2 skipped, 0 failed" in window.status.get_text()
+        deliveries.clear()
+        window.signal.set_text(" ")
+        window.send()
+        assert "Enter a signal" in window.status.get_text() and not deliveries
+        window.signal.set_text("Continue")
         window.save()
         idle()
         window.toggle_watch()
