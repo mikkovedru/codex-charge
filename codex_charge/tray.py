@@ -215,15 +215,22 @@ class TrayApp:
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def open_targets(self, _icon=None, _item=None, *, settings=False):
+    def toggle_targets(self, _icon=None, _item=None):
+        self.open_targets(toggle=True)
+
+    def open_targets(self, _icon=None, _item=None, *, settings=False, toggle=False):
         if sys.platform != "linux":
             return
         from gi.repository import GLib
         def show():
             from .target_ui import TargetPicker
+            if toggle and self._picker is not None and not self._picker.closed and self._picker.get_visible():
+                self._picker.hide()
+                return False
             if self._picker is None or self._picker.closed:
                 self._picker = TargetPicker(quit_on_close=False)
                 self._picker.show_all()
+            self._picker.show()
             self._picker.present()
             if settings:
                 self._picker.settings()
@@ -244,8 +251,9 @@ class TrayApp:
 
     def _build_menu(self) -> pystray.Menu:
         return pystray.Menu(
-            pystray.MenuItem("Open Codex Charge…", self.open_targets,
-                             default=sys.platform == "linux", visible=sys.platform == "linux"),
+            pystray.MenuItem("Toggle dashboard", self.toggle_targets,
+                             default=sys.platform == "linux", visible=False),
+            pystray.MenuItem("Open Codex Charge…", self.open_targets, visible=sys.platform == "linux"),
             pystray.MenuItem(
                 t("tray.start_goal"),
                 self.start_goal,

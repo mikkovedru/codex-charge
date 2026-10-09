@@ -55,8 +55,10 @@ The root `codex-charge --help` lists both GUI command forms. A Linux release
 contains the CLI, tray, and dedicated GUI launcher; keep them together.
 All GUI launch commands start the tray too. Further launches reuse the same tray
 and present its existing window, preserving unsaved edits. Closing the window
-keeps the tray and watch running. Double-click the icon to open the dashboard;
-right-click for the tray menu, including **Exit** to quit.
+keeps the tray and watch running. Double-click the icon to hide the visible
+dashboard to the tray, or restore it with unsaved edits intact. GUI launch
+commands and **Open Codex Charge…** always show the dashboard. Right-click for
+the tray menu, including **Exit** to quit.
 Search by title, ID, project, PID or deep link. Check several rows, edit the signal,
 and use **Save selection** for quota-reset delivery. With goal recovery disabled,
 **Send signal now** sends the visible text to the checked rows. With recovery

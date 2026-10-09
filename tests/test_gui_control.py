@@ -178,3 +178,15 @@ def test_gui_control_queues_the_right_window_action(monkeypatch):
     assert app.control("open-settings")["gui_control"]
     assert calls == [{"settings": False}, {"settings": True}]
     assert not app.control("status")["desktop_watch"]
+
+
+def test_icon_default_toggles_but_open_menu_always_opens(monkeypatch):
+    from codex_charge import tray
+    app, calls = tray.TrayApp(), []
+    monkeypatch.setattr(app, "open_targets", lambda *a, **kw: calls.append(kw))
+    menu = app._build_menu()
+    menu(None)  # Icon activation invokes the hidden default action.
+    assert calls == [{"toggle": True}]
+    calls.clear()
+    next(item for item in menu if item.text == "Open Codex Charge…")(None)
+    assert calls == [{}]

@@ -52,7 +52,7 @@ assert not errors, errors
 
 
 @pytest.mark.skipif(os.environ.get("CODEX_CHARGE_GUI_TESTS") != "1", reason="Requires an active Cinnamon panel")
-def test_double_click_opens_shared_dashboard_and_close_keeps_tray():
+def test_double_click_toggles_shared_dashboard_and_close_keeps_tray():
     env = dict(os.environ)
     env.pop("PYSTRAY_BACKEND", None)
     result = subprocess.run([sys.executable, "-c", r'''
@@ -60,6 +60,7 @@ import subprocess, sys
 from codex_charge import tray, target_ui, tray_control
 from codex_charge.targets import Inventory
 from gi.repository import GLib
+import time
 # No live quota queries, chat discovery, startup changes or chat messages.
 tray.is_autostart_enabled = lambda: False
 target_ui.discover_targets = lambda: Inventory([])
@@ -74,29 +75,46 @@ def stage(callback):
             app.exit_app(app._icon)
         return False
     return run
-def double_click():
+def click_icon():
     icon = app._icon
-    assert app._picker is None
     if type(icon).__name__ == 'CinnamonGtkIcon':
         assert icon._plug.get_embedded()
         _, x, y = icon._plug.get_window().get_origin()
         size = icon._allocated_size()
-        subprocess.run(['xdotool', 'mousemove', '--sync', str(x + size//2), str(y + size//2)], check=True, timeout=3)
+        subprocess.run(['xdotool', 'mousemove', str(x + size//2), str(y + size//2)], check=True, timeout=3)
         subprocess.run(['xdotool', 'click', '--repeat', '2', '--delay', '80', '1'], check=True, timeout=3)
     else:
         assert type(icon).__name__ == 'XAppIcon'
         assert icon._status_icon.get_primary_menu() is None
         assert icon._status_icon.get_secondary_menu() is not None
-        icon._status_icon.emit('button-press-event', 0, 0, 1, 1000, 0)
-        assert app._picker is None
-        icon._status_icon.emit('button-press-event', 0, 0, 1, 1080, 0)
+        timestamp = int(time.monotonic()*1000) % (2**32)
+        icon._status_icon.emit('button-press-event', 0, 0, 1, timestamp, 0)
+        icon._status_icon.emit('button-press-event', 0, 0, 1, (timestamp+80) % (2**32), 0)
+def double_click():
+    assert app._picker is None
+    click_icon()
+    GLib.timeout_add(500, stage(hide))
+def hide():
+    picker = app._picker
+    assert picker is not None and picker.get_visible()
+    picker.signal.set_text("Keep this unsaved edit")
+    windows.append(picker)
+    click_icon()
+    GLib.timeout_add(500, stage(hidden))
+def hidden():
+    assert app._picker is windows[0] and not app._picker.get_visible()
+    assert not app._picker.closed and app._icon._loop.is_running()
+    assert app._picker.signal.get_text() == "Keep this unsaved edit"
+    assert tray_control.request()["gui_control"]
+    click_icon()
     GLib.timeout_add(500, stage(reuse))
 def reuse():
     picker = app._picker
     assert picker is not None and picker.get_visible()
     assert not picker.quit_on_close
-    picker.signal.set_text('Keep this unsaved edit')
-    windows.append(picker)
+    assert picker is windows[0]
+    assert picker.signal.get_text() == 'Keep this unsaved edit'
+    picker.hide()  # CLI launch restores a hidden dashboard and never toggles it off.
     for command in ([sys.executable, '-m', 'codex_charge.gui'],
                     [sys.executable, '-m', 'codex_charge.cli', 'gui'],
                     [sys.executable, '-m', 'codex_charge.cli', 'targets', '--gui']):
@@ -104,7 +122,7 @@ def reuse():
         assert call.returncode == 0, call.stderr
     GLib.timeout_add(300, stage(close))
 def close():
-    assert app._picker is windows[0]
+    assert app._picker is windows[0] and app._picker.get_visible()
     assert app._picker.signal.get_text() == 'Keep this unsaved edit'
     app._picker.destroy()
     assert app._picker.closed

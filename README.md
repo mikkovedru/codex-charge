@@ -701,8 +701,8 @@ After installing the Python package, use `codex-charge gui` or `codex-charge-gui
 For a release archive, keep all three executables together. `codex-charge --help`
 lists both GUI commands. GUI launch commands also start the tray, or reuse the
 running tray and bring its dashboard forward. Closing the window keeps the tray
-and its watch available. Double-click the tray icon to reopen the dashboard;
-right-click for the tray menu. Use **Exit** in that menu to quit the application.
+and its watch available. Double-click the tray icon to hide the open dashboard
+to the tray or restore it, preserving unsaved edits. Right-click for the tray menu. Use **Exit** in that menu to quit the application.
 
 The GUI shows saved/unsaved selection, task and goal status refreshed every 15 seconds,
 live quota usage and reset countdowns,
