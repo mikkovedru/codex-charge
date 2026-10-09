@@ -270,3 +270,60 @@ def test_missing_turn_identity_is_uncertain(monkeypatch, turn):
         "handledByClientId": "owner", "result": {"result": {"turn": turn}}})
     with pytest.raises(DeliveryUncertain):
         desktop.send("a", "Continue", "owner")
+
+
+def test_saved_project_names_current_and_legacy_membership(tmp_path):
+    path = tmp_path / "state_5.sqlite"
+    with sqlite3.connect(path) as db:
+        db.execute("create table projects(id text, name text)")
+        db.execute("create table threads(id text, project_id text)")
+        db.executemany("insert into projects values (?,?)", [("new", "Renamed in Codex"), ("other", "Other project")])
+        db.executemany("insert into threads values (?,?)", [("native", "other"), ("legacy", None), ("removed", "deleted")])
+    state = {
+        "local-projects": {"old": {"name": "Stale name"}},
+        "thread-project-assignments": {name: {"projectKind": "local", "projectId": "old"}
+            for name in ("native", "legacy", "removed", "projectless", "remote")},
+        "thread-project-membership-host-ids": {"remote": "ssh:elsewhere"},
+        "projectless-thread-ids": ["projectless"],
+        "app-server-project-id-by-legacy-project-id-by-host": {f"local:{tmp_path}": {"old": "new"}},
+    }
+    state_path = tmp_path / ".codex-global-state.json"
+    state_path.write_text(json.dumps(state))
+    before = path.read_bytes(), state_path.read_bytes()
+    assert targets._saved_project_names(tmp_path) == {
+        "native": "Other project", "legacy": "Renamed in Codex", "removed": "", "projectless": ""}
+    assert (path.read_bytes(), state_path.read_bytes()) == before
+    with sqlite3.connect(path) as db:
+        db.execute("update projects set name='Latest name' where id='new'")
+    assert targets._saved_project_names(tmp_path)["legacy"] == "Latest name"
+
+
+def test_legacy_project_names_do_not_guess_from_paths(tmp_path):
+    state = {
+        "local-projects": {"project": {"name": "Custom name", "rootPaths": ["/work/repo"]}},
+        "thread-project-assignments": {"assigned": {"projectKind": "local", "projectId": "project"},
+            "cloud": {"projectKind": "chatgpt", "projectId": "project"}},
+    }
+    (tmp_path / ".codex-global-state.json").write_text(json.dumps(state))
+    assert targets._saved_project_names(tmp_path) == {"assigned": "Custom name"}
+    assert targets.Target.from_dict({"kind": "thread", "id": "old", "title": "Old"}).project_name == ""
+    selected = Target("thread", "assigned", "Title", cwd="/different/worktree", project_name="Custom name")
+    AppConfig(desktop_targets=[selected.to_dict()]).save()
+    assert AppConfig.load().targets()[0].project_name == "Custom name"
+
+
+def test_discovery_keeps_paths_and_reports_unreadable_project_names(monkeypatch, tmp_path):
+    monkeypatch.setattr(targets.sys, "platform", "win32")
+    monkeypatch.setattr(targets, "discover_homes", lambda: {tmp_path})
+    monkeypatch.setattr(targets, "discover_windows", lambda: [])
+    monkeypatch.setattr(targets, "_saved_threads", lambda _: [{"id": "a", "title": "A", "cwd": "/old/path"}])
+    state = {"local-projects": {"p": {"name": "Friendly name"}},
+        "thread-project-assignments": {"a": {"projectKind": "local", "projectId": "p"}}}
+    path = tmp_path / ".codex-global-state.json"
+    path.write_text(json.dumps(state))
+    found = targets.discover_targets().targets[0]
+    assert found.project_name == "Friendly name" and found.cwd == "/old/path"
+    path.write_text("{broken")
+    inventory = targets.discover_targets()
+    assert inventory.targets[0].cwd == "/old/path" and inventory.targets[0].project_name == ""
+    assert any("Project names unavailable" in warning for warning in inventory.warnings)

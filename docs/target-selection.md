@@ -60,27 +60,39 @@ dashboard to the tray, or restore it with the current view intact. GUI launch
 commands and **Open Codex Charge…** always show the dashboard. Right-click for
 the tray menu, including **Exit** to quit.
 Search by title, ID, project, PID or deep link. Enable **Prompt**, **Goal**, or both
-for each recipient and edit the prompt message. These changes save automatically
-for quota-reset delivery. **Send signals** uses the current choices immediately.
+for each recipient and edit the multiline prompt message. Newlines are preserved
+when saving and sending. These changes save automatically for quota-reset
+delivery. **Send signals** uses the current choices immediately.
 Prompt sends only the message. Goal resumes natively and starts
 continuation without a prompt. Both activates the goal first, then sends the
 prompt. Window rows support Prompt only. **Open selected row** opens a chat
 without sending.
 Metadata columns can be resized and scrolled; hovering a row shows full values.
 
-The dashboard confirms automatic saving and shows write failures with automatic
-retries while the window is open. Changes made by another picker are reported
-without overwriting them during refresh. The **Start/Stop Desktop watch** button
+Successful automatic saves do not add a status line. Write failures remain
+visible and retry while the window is open. Changes made by another picker are
+reported without overwriting them during refresh. The **Start/Stop Desktop watch** button
 controls the tray's actual worker. Its adjacent status has a green border when
-On and a red border when Off, and updates every two seconds. A stopping worker
-must finish before another starts. If the tray is absent, Start launches it.
+On, a red border when Off, and a yellow border while Stopping. It updates every
+two seconds. A stopping worker must finish before another starts. If the tray is absent, Start launches it.
 Closing the picker leaves the tray and active watch running.
 
 The list includes separate **Task status** and **Goal status** columns next to
 its title. Status and target discovery refresh every 15 seconds without clearing
 your choices; **Refresh** updates them immediately. Directly below the list,
 **Refresh** appears on the left, followed by the last refresh time, with
-**Copy link / ID** on the right. Search also matches both status columns.
+**Copy link / ID** and **Open selected row** on the right. Below the multiline
+prompt, the recipient summary shares a row with **Send signals** at the far
+right. Search also matches both status columns and the project name.
+
+**Project** and **Project path** sit between **Goal status** and **Kind**. Project
+names come from read-only, schema-checked Codex project metadata, combining
+native SQLite memberships with desktop assignments retained during migration.
+Native names take precedence over old cached names; explicit chat membership is
+used even when the working path has moved. Older releases use the desktop state
+file. Unassigned chats and window recipients have no project name. Unsupported
+or unreadable metadata produces a discovery warning, while paths remain visible.
+Folder names are not substituted for custom names.
 
 Task status reports **Running**, **Waiting for approval**, **Waiting for input**,
 **Idle**, **Error**, or **Not loaded**. For an open local chat, a temporary,

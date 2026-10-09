@@ -33,8 +33,8 @@ def control(command="status", **kwargs):
     return dict(runtime)
 target_ui.tray_control.request = control
 from gi.repository import GLib, Gtk
-alpha = Target("thread", "alpha", "Same title", instance="profile", deeplink="codex://threads/alpha", task_status="Running", goal_status="Active")
-beta = Target("thread", "beta", "Same title", instance="profile", deeplink="codex://threads/beta", task_status="Idle", goal_status="Paused")
+alpha = Target("thread", "alpha", "Same title", instance="profile", deeplink="codex://threads/alpha", task_status="Running", goal_status="Active", project_name="Named project", cwd="/projects/alpha")
+beta = Target("thread", "beta", "Same title", instance="profile", deeplink="codex://threads/beta", task_status="Idle", goal_status="Paused", project_name="Other project", cwd="/projects/beta")
 target_ui.discover_targets = lambda: Inventory([alpha, beta])
 AppConfig().save()
 window = target_ui.TargetPicker()
@@ -50,26 +50,35 @@ def check():
     if window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         return True
     try:
-        assert "Saved" in window.save_state.get_text()
+        assert not window.save_state.get_visible()
         assert "42%" in window.quota_label.get_text()
         assert "Weekly" in window.quota_label.get_text() and "resets" in window.quota_label.get_text()
         assert "started at login: Yes" in window.startup_label.get_text()
         # The toolbar immediately follows the list: Refresh, status, Copy.
         toolbar = window.list_toolbar
-        assert toolbar.get_children() == [window.refresh_button, window.inventory_status, window.copy_button]
+        assert toolbar.get_children() == [window.refresh_button, window.inventory_status, window.copy_button, window.open_button]
         siblings = toolbar.get_parent().get_children()
         assert siblings[siblings.index(toolbar)-1] is window.table.get_parent()
         assert "Save selection" not in [button.get_label() for button in window.buttons]
+        assert window.send_row.get_children() == [window.summary, window.send_button]
+        assert siblings[siblings.index(window.send_row)-1] is window.prompt_scroller.get_parent()
+        assert isinstance(window.signal, Gtk.TextView)
+        assert window.signal.get_wrap_mode() == Gtk.WrapMode.WORD_CHAR
+        assert not window.status.get_visible()
         assert "watch-off" in window.watch_label.get_style_context().list_classes()
         color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
         assert color.red > .7 and color.green < .2 and color.alpha == 1
+        window.search.set_text("Named project")
+        window.filtered.refilter()
+        assert len(window.filtered) == 1 and window.filtered[0][4] == "alpha"
+        assert window.filtered[0][13] == "Named project" and window.filtered[0][8] == "/projects/alpha"
         window.search.set_text("beta")
         window.filtered.refilter()
         assert len(window.filtered) == 1
         window._toggle(None, "0")
         assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
-        assert not window.dirty() and "Saved automatically" in window.save_state.get_text()
-        assert [c.get_title() for c in window.table.get_columns()][:5] == ["Prompt", "Goal", "Title", "Task status", "Goal status"]
+        assert not window.dirty() and not window.save_state.get_visible()
+        assert [c.get_title() for c in window.table.get_columns()][:8] == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project", "Project path", "Kind"]
         window.table.get_selection().select_path("0")
         target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
         window.refresh_statuses()
@@ -101,16 +110,17 @@ def check():
         window.search.set_text("")
         window.filtered.refilter()
         window._toggle(None, "0")
-        window.signal.set_text("Continue")
+        window.signal_buffer.set_text("Continue")
         saved = AppConfig.load()
         assert {t.id for t in saved.targets()} == {"alpha", "beta"}
         assert saved.continue_prompt == "Continue"
         assert all(t.send_prompt and not t.send_goal for t in saved.targets())
-        assert not window.dirty() and "Saved" in window.save_state.get_text()
-        window.signal.set_text("Edited")
-        assert AppConfig.load().continue_prompt == "Edited"
+        assert not window.dirty() and not window.save_state.get_visible()
+        window.signal_buffer.set_text("First line\nSecond line\n\nFinal line")
+        assert AppConfig.load().continue_prompt == "First line\nSecond line\n\nFinal line"
+        assert window._prompt_text() == AppConfig.load().continue_prompt
         assert not window.dirty()
-        window.signal.set_text("Continue")
+        window.signal_buffer.set_text("Continue")
         assert not window.dirty()
         # Each row independently persists Prompt and Goal through refreshes.
         deliveries = []
@@ -132,6 +142,12 @@ def check():
         idle()
         assert deliveries == [([("beta", False, True), ("alpha", True, False)], "Continue", True)]
         assert "Signals: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
+        window.signal_buffer.set_text("First line\nSecond line\n\nFinal line")
+        window.send()
+        idle()
+        assert deliveries[-1][1] == "First line\nSecond line\n\nFinal line"
+        assert AppConfig.load().continue_prompt == deliveries[-1][1]
+        window.signal_buffer.set_text("Continue")
         idle()
         assert {t.id: t.signal_actions() for t in AppConfig.load().targets()} == {"alpha": (True, False), "beta": (False, True)}
         assert not window.dirty()
@@ -142,14 +158,14 @@ def check():
         runtime["per_target_signals"] = True
         # Blank text is valid for Goal-only recipients, and invalid for Prompt.
         window._toggle(None, "0", "send_prompt")
-        window.signal.set_text(" ")
+        window.signal_buffer.set_text(" ")
         window.send()
         idle()
         assert deliveries[-1] == ([("beta", False, True)], " ", True)
         window._toggle(None, "0", "send_prompt")
         window.send()
         assert "Enter a prompt" in window.status.get_text()
-        window.signal.set_text("Continue")
+        window.signal_buffer.set_text("Continue")
         idle()
         # Dashboard controls precede their own status text.
         assert window.watch_label.get_parent().get_children()[0] is window.watch_button
@@ -205,6 +221,15 @@ def check():
         window.poll_runtime()
         idle()
         assert "restart" in window.watch_label.get_text()
+        runtime["stopping"] = True
+        window.poll_runtime()
+        idle()
+        assert "Stopping" in window.watch_label.get_text()
+        assert not window.watch_button.get_sensitive()
+        assert "watch-stopping" in window.watch_label.get_style_context().list_classes()
+        color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
+        assert color.red > .8 and color.green > .6 and color.blue < .1
+        runtime["stopping"] = False
         window.toggle_watch()
         idle()
         assert "Desktop watch: Off" in window.watch_label.get_text()
@@ -221,12 +246,12 @@ def check():
         AppConfig.save = lambda _: (_ for _ in ()).throw(OSError("disk unavailable <test>"))
         window._toggle(None, "1", "send_prompt")
         assert AppConfig.load().desktop_targets == before
-        assert window.dirty() and "Could not save automatically" in window.save_state.get_text()
+        assert window.dirty() and window.save_state.get_visible() and "Could not save automatically" in window.save_state.get_text()
         assert "<test>" in window.save_state.get_text()
         AppConfig.save = original_save
         window.poll_runtime()
         idle()
-        assert not window.dirty() and not window.autosave_error
+        assert not window.dirty() and not window.autosave_error and not window.save_state.get_visible()
         assert {t.id: t.signal_actions() for t in AppConfig.load().targets()}["beta"] == (True, True)
         changed = AppConfig.load()
         changed.continue_prompt = "External edit"

@@ -30,6 +30,7 @@ class Target:
     # None marks legacy selections; the GUI persists explicit booleans.
     send_prompt: bool | None = None
     send_goal: bool | None = None
+    project_name: str = ""
 
     def signal_actions(self, legacy_goal=False):
         return (True if self.send_prompt is None else self.send_prompt,
@@ -178,6 +179,63 @@ def _saved_threads(home):
     return []
 
 
+def _saved_project_names(home):
+    """Read Codex's project labels and explicit memberships, never infer from cwd.
+
+    Newer backends persist projects and thread membership in SQLite. Desktop
+    releases also retain legacy assignments in their global state during the
+    migration; those assignments are necessary even with a projects table.
+    """
+    names, memberships = None, {}
+    databases = sorted((p for p in home.glob("state_*.sqlite")
+        if p.stem.split("_")[-1].isdigit()),
+        key=lambda p: int(p.stem.split("_")[-1]), reverse=True)
+    for database in databases:
+        with closing(sqlite3.connect(f"file:{quote(str(database))}?mode=ro", uri=True, timeout=1)) as db:
+            projects = {r[1] for r in db.execute("PRAGMA table_info(projects)")}
+            threads = {r[1] for r in db.execute("PRAGMA table_info(threads)")}
+            if not {"id", "name"} <= projects:
+                continue
+            names = dict(db.execute("SELECT id,name FROM projects"))
+            if {"id", "project_id"} <= threads:
+                memberships = dict(db.execute("SELECT id,project_id FROM threads WHERE project_id IS NOT NULL"))
+            break
+    state_file = home / ".codex-global-state.json"
+    state = json.loads(state_file.read_text(encoding="utf-8")) if state_file.exists() else {}
+    if not isinstance(state, dict):
+        raise ValueError("Unsupported Codex project state")
+    def mapping(value):
+        return value if isinstance(value, dict) else {}
+    projects = mapping(state.get("local-projects"))
+    assignments = mapping(state.get("thread-project-assignments"))
+    hosts = mapping(state.get("thread-project-membership-host-ids"))
+    migrations = mapping(mapping(state.get("app-server-project-id-by-legacy-project-id-by-host")).get(f"local:{home}"))
+    result = {}
+    for thread_id, assignment in assignments.items():
+        if not isinstance(assignment, dict) or assignment.get("projectKind") != "local" or hosts.get(thread_id, "local") != "local":
+            continue
+        project_id = assignment.get("projectId")
+        if not isinstance(project_id, str):
+            continue
+        if names is not None:
+            name = names.get(migrations.get(project_id, project_id), "")
+        else:
+            name = mapping(projects.get(project_id)).get("name", "")
+        if isinstance(name, str):
+            result[thread_id] = name
+    # Explicit projectless decisions override old desktop assignments. Native
+    # memberships take precedence when a chat has since moved to a new project.
+    projectless = state.get("projectless-thread-ids", [])
+    if isinstance(projectless, list):
+        for thread_id in projectless:
+            if isinstance(thread_id, str):
+                result[thread_id] = ""
+    for thread_id, project_id in memberships.items():
+        name = (names or {}).get(project_id, "")
+        result[thread_id] = name if isinstance(name, str) else ""
+    return result
+
+
 def discover_windows():
     if sys.platform.startswith("linux"):
         from Xlib import display
@@ -305,7 +363,12 @@ def discover_targets():
         except (OSError, sqlite3.Error) as exc:
             goals = None
             inventory.warnings.append(f"Goal status unavailable: {exc}")
-        targets = [_thread_target(r, home, ipc) for r in records]
+        try:
+            project_names = _saved_project_names(home)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            project_names = {}
+            inventory.warnings.append(f"Project names unavailable: {exc}")
+        targets = [replace(_thread_target(r, home, ipc), project_name=project_names.get(r["id"], "")) for r in records]
         if goals is not None:
             targets = [replace(t, goal_status=goal_status(goals[t.id]) if t.id in goals else "No goal")
                        for t in targets]

@@ -705,7 +705,8 @@ running tray and bring its dashboard forward. Closing the window keeps the tray
 and its watch available. Double-click the tray icon to hide the open dashboard
 to the tray or restore it, preserving the current view. Right-click for the tray menu. Use **Exit** in that menu to quit the application.
 
-The GUI confirms automatic saving, shows task and goal status refreshed every 15 seconds,
+The GUI saves checkbox and multiline prompt edits automatically, and shows
+task and goal status refreshed every 15 seconds,
 live quota usage and reset countdowns,
 startup registration and launch origin, and the actual Desktop watch state.
 Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
@@ -726,8 +727,11 @@ each recipient appear in the window. Starting watch after quota has recovered
 also recovers selected usage-limited goals, after the grace period.
 The checkbox before **Run at login** enables or disables startup directly;
 the watch button is beside its **Desktop watch: On/Off** status, bordered green
-when On and red when Off. **Refresh** and **Copy link / ID** sit directly below
-the list, on either side of the inventory status.
+when On, red when Off, and yellow while Stopping. **Refresh** sits directly
+below the list; **Copy link / ID** and **Open selected row** are on its right.
+The recipient summary and **Send signals** sit below the multiline prompt, with
+the send button on the far right. **Project** shows the name assigned in Codex;
+**Project path** retains the chat's working path. Both precede **Kind**.
 Old selections migrate to Prompt, or Prompt + Goal when old goal recovery was enabled.
 Saved changes to an active watch take effect when it is stopped and started.
 

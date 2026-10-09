@@ -98,14 +98,14 @@ def double_click():
 def hide():
     picker = app._picker
     assert picker is not None and picker.get_visible()
-    picker.signal.set_text("Keep this unsaved edit")
+    picker.signal_buffer.set_text("Keep this\nmultiline prompt")
     windows.append(picker)
     click_icon()
     GLib.timeout_add(500, stage(hidden))
 def hidden():
     assert app._picker is windows[0] and not app._picker.get_visible()
     assert not app._picker.closed and app._icon._loop.is_running()
-    assert app._picker.signal.get_text() == "Keep this unsaved edit"
+    assert app._picker._prompt_text() == "Keep this\nmultiline prompt"
     assert tray_control.request()["gui_control"]
     click_icon()
     GLib.timeout_add(500, stage(reuse))
@@ -114,7 +114,7 @@ def reuse():
     assert picker is not None and picker.get_visible()
     assert not picker.quit_on_close
     assert picker is windows[0]
-    assert picker.signal.get_text() == 'Keep this unsaved edit'
+    assert picker._prompt_text() == 'Keep this\nmultiline prompt'
     picker.hide()  # CLI launch restores a hidden dashboard and never toggles it off.
     for command in ([sys.executable, '-m', 'codex_charge.gui'],
                     [sys.executable, '-m', 'codex_charge.cli', 'gui'],
@@ -124,7 +124,7 @@ def reuse():
     GLib.timeout_add(300, stage(close))
 def close():
     assert app._picker is windows[0] and app._picker.get_visible()
-    assert app._picker.signal.get_text() == 'Keep this unsaved edit'
+    assert app._picker._prompt_text() == 'Keep this\nmultiline prompt'
     app._picker.destroy()
     assert app._picker.closed
     assert app._icon._loop.is_running()
@@ -133,6 +133,7 @@ def close():
     GLib.timeout_add(300, stage(reopened))
 def reopened():
     assert app._picker is not windows[0] and app._picker.get_visible()
+    assert app._picker._prompt_text() == 'Keep this\nmultiline prompt'
     assert app._icon._loop.is_running()
     app.exit_app(app._icon)
 GLib.timeout_add_seconds(2, stage(double_click))

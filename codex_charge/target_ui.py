@@ -54,6 +54,7 @@ class TargetPicker(Gtk.Window):
             .watch-status { border-width: 2px; border-style: solid; border-radius: 4px; padding: 6px 8px; }
             .watch-on { border-color: #198038; }
             .watch-off { border-color: #c62828; }
+            .watch-stopping { border-color: #e0b400; }
         """)
         context = self.watch_label.get_style_context()
         context.add_provider(watch_css, Gtk.STYLE_PROVIDER_PRIORITY_USER)
@@ -89,7 +90,7 @@ class TargetPicker(Gtk.Window):
         self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
         box.pack_start(self.search, False, False, 0)
-        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str, bool)
+        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str, bool, str)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
         self.table = Gtk.TreeView(model=self.filtered)
@@ -103,9 +104,9 @@ class TargetPicker(Gtk.Window):
                 column.set_cell_data_func(checkbox, self._goal_cell)
             self.table.append_column(column)
         columns = [("Title", 1, 270), ("Task status", 10, 170), ("Goal status", 11, 140),
-                   ("Kind", 2, 80), ("Availability", 3, 160), ("ID", 4, 295),
+                   ("Project", 13, 180), ("Project path", 8, 300), ("Kind", 2, 80), ("Availability", 3, 160), ("ID", 4, 295),
                    ("PID", 5, 95), ("Instance", 6, 260), ("Deep link", 7, 400),
-                   ("Project", 8, 300), ("Desktop client", 9, 300)]
+                   ("Desktop client", 9, 300)]
         for name, index, width in columns:
             renderer = Gtk.CellRendererText()
             renderer.set_property("ellipsize", 3)
@@ -130,30 +131,50 @@ class TargetPicker(Gtk.Window):
         self.list_toolbar.pack_start(self.refresh_button, False, False, 0)
         self.list_toolbar.pack_start(self.inventory_status, True, True, 0)
         self.list_toolbar.pack_start(self.copy_button, False, False, 0)
-        self.buttons.extend((self.refresh_button, self.copy_button))
+        self.open_button = Gtk.Button(label="Open selected row")
+        self.open_button.connect("clicked", self.open_row)
+        self.list_toolbar.pack_start(self.open_button, False, False, 0)
+        self.buttons.extend((self.refresh_button, self.copy_button, self.open_button))
         box.pack_start(self.list_toolbar, False, False, 0)
-        self.summary = Gtk.Label(xalign=0, selectable=True)
-        box.pack_start(self.summary, False, False, 0)
-        self.save_state = Gtk.Label(xalign=0)
-        box.pack_start(self.save_state, False, False, 0)
         prompt = Gtk.Box(spacing=8)
-        prompt.pack_start(Gtk.Label(label="Prompt message:"), False, False, 0)
-        self.signal = Gtk.Entry(text=self.config.continue_prompt)
-        prompt.pack_start(self.signal, True, True, 0)
+        prompt_label = Gtk.Label(label="Prompt message:", valign=Gtk.Align.START)
+        prompt_label.set_margin_top(6)
+        prompt.pack_start(prompt_label, False, False, 0)
+        self.signal = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        self.signal.set_left_margin(8)
+        self.signal.set_right_margin(8)
+        self.signal.set_top_margin(6)
+        self.signal.set_bottom_margin(6)
+        self.signal_buffer = self.signal.get_buffer()
+        self.signal_buffer.set_text(self.config.continue_prompt)
+        self.prompt_scroller = Gtk.ScrolledWindow()
+        self.prompt_scroller.set_shadow_type(Gtk.ShadowType.IN)
+        self.prompt_scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self.prompt_scroller.set_size_request(-1, 100)
+        self.prompt_scroller.add(self.signal)
+        prompt.pack_start(self.prompt_scroller, True, True, 0)
         box.pack_start(prompt, False, False, 0)
-        self.signal.connect("changed", self._preferences_changed)
-        self.status = Gtk.Label(label="Checkbox and prompt changes save automatically.", xalign=0, selectable=True)
+        self.signal_buffer.connect("changed", self._preferences_changed)
+        self.summary = Gtk.Label(xalign=0, selectable=True)
+        self.summary.set_line_wrap(True)
+        self.summary.set_max_width_chars(80)
+        self.send_row = Gtk.Box(spacing=8)
+        self.send_row.pack_start(self.summary, True, True, 0)
+        self.send_button = Gtk.Button(label="Send signals", valign=Gtk.Align.CENTER)
+        self.send_button.connect("clicked", self.send)
+        self.send_row.pack_start(self.send_button, False, False, 0)
+        self.buttons.append(self.send_button)
+        box.pack_start(self.send_row, False, False, 0)
+        # Successful autosaves stay quiet; only errors or external edits need a line.
+        self.save_state = Gtk.Label(xalign=0)
+        self.save_state.set_line_wrap(True)
+        self.save_state.set_no_show_all(True)
+        box.pack_start(self.save_state, False, False, 0)
+        self.status = Gtk.Label(xalign=0, selectable=True)
         self.status.set_line_wrap(True)
+        self.status.set_no_show_all(True)
+        self.status.connect("notify::label", lambda widget, _: widget.set_visible(bool(widget.get_text())))
         box.pack_start(self.status, False, False, 0)
-        buttons = Gtk.Box(spacing=8)
-        for label, action in (("Open selected row", self.open_row), ("Send signals", self.send)):
-            button = Gtk.Button(label=label)
-            button.connect("clicked", action)
-            buttons.pack_start(button, False, False, 0)
-            self.buttons.append(button)
-            if action == self.send:
-                self.send_button = button
-        box.pack_start(buttons, False, False, 0)
         self.connect("delete-event", lambda *_: self.busy)
         self.connect("destroy", self._destroy)
         self._timers = [GLib.timeout_add_seconds(2, self.poll_runtime),
@@ -170,13 +191,13 @@ class TargetPicker(Gtk.Window):
             return False
         _valid, _x, _y, model, path, iterator = context
         row = model[iterator]
-        tooltip.set_text(f"{row[1]}\nTask: {row[10]}\nGoal: {row[11]}\nID: {row[4]}\nPID: {row[5] or '—'}\nInstance: {row[6]}\n{row[7]}\nProject: {row[8]}\nDesktop client: {row[9]}")
+        tooltip.set_text(f"{row[1]}\nTask: {row[10]}\nGoal: {row[11]}\nID: {row[4]}\nPID: {row[5] or '—'}\nInstance: {row[6]}\n{row[7]}\nProject: {row[13] or '—'}\nProject path: {row[8]}\nDesktop client: {row[9]}")
         table.set_tooltip_row(tooltip, path)
         return True
 
     def _visible(self, model, iterator, _data):
         query = self.search.get_text().casefold()
-        return not query or query in " ".join(str(model[iterator][i]) for i in range(1, 12)).casefold()
+        return not query or query in " ".join(str(model[iterator][i]) for i in (*range(1, 12), 13)).casefold()
 
     @staticmethod
     def _goal_cell(_column, renderer, model, iterator, _data):
@@ -204,12 +225,15 @@ class TargetPicker(Gtk.Window):
     def _preferences_changed(self, *_):
         self.save()
 
+    def _prompt_text(self):
+        return self.signal_buffer.get_text(*self.signal_buffer.get_bounds(), True)
+
     @staticmethod
     def _signature(targets, text):
         return (frozenset((t.key, *t.signal_actions()) for t in targets), text)
 
     def dirty(self):
-        return self._signature(self.selected.values(), self.signal.get_text()) != self.saved_signature
+        return self._signature(self.selected.values(), self._prompt_text()) != self.saved_signature
 
     def _summary(self):
         prompts = sum(t.signal_actions()[0] for t in self.selected.values())
@@ -221,8 +245,9 @@ class TargetPicker(Gtk.Window):
         elif self.dirty():
             message = "Changes differ from saved settings. Edits save automatically."
         else:
-            message = "Saved automatically — recipients, signals and prompt match your settings."
+            message = ""
         self.save_state.set_markup("<b>" + GLib.markup_escape_text(message) + "</b>")
+        self.save_state.set_visible(bool(message))
         self._render_runtime()
 
     def _destroy(self, *_):
@@ -287,8 +312,9 @@ class TargetPicker(Gtk.Window):
                 state += " — saved settings could not be read"
         self.watch_label.set_text("Desktop watch: " + state)
         context = self.watch_label.get_style_context()
-        context.remove_class("watch-off" if alive else "watch-on")
-        context.add_class("watch-on" if alive else "watch-off")
+        for name in ("watch-off", "watch-on", "watch-stopping"):
+            context.remove_class(name)
+        context.add_class("watch-stopping" if stopping else "watch-on" if alive else "watch-off")
         self.watch_button.set_label("Stop Desktop watch" if alive else "Start Desktop watch")
         self.watch_button.set_sensitive(not self.busy and not self.runtime_busy and not stopping and not runtime.get("cli_running", False))
         try:
@@ -334,7 +360,7 @@ class TargetPicker(Gtk.Window):
             if not self.selected:
                 self.status.set_text("Enable Prompt or Goal for at least one recipient before starting Desktop watch.")
                 return
-            if any(t.signal_actions()[0] for t in self.selected.values()) and not self.signal.get_text().strip():
+            if any(t.signal_actions()[0] for t in self.selected.values()) and not self._prompt_text().strip():
                 self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
                 return
             command = "start-watch"
@@ -461,7 +487,7 @@ class TargetPicker(Gtk.Window):
             values = [choice.send_prompt if choice else False, target.title, target.kind,
                 target.status if key in live else "Unavailable — saved selection",
                 target.id, str(target.pid or ""), target.instance, target.deeplink, target.cwd,
-                target.owner_id, target.task_status, target.goal_status, choice.send_goal if choice else False]
+                target.owner_id, target.task_status, target.goal_status, choice.send_goal if choice else False, target.project_name]
             iterator = rows.get(key)
             if iterator is None:
                 self.store.append(values)
@@ -525,7 +551,7 @@ class TargetPicker(Gtk.Window):
         try:
             config = AppConfig.load()
             config.desktop_targets = [t.to_dict() for t in self.selected.values()]
-            config.continue_prompt = self.signal.get_text()
+            config.continue_prompt = self._prompt_text()
             config.mode = "desktop"
             config.save()
         except Exception as exc:
@@ -537,7 +563,7 @@ class TargetPicker(Gtk.Window):
         self.autosave_error = ""
         self.saved_signature = self._signature(self.selected.values(), config.continue_prompt)
         self._summary()
-        self.status.set_text(f"Saved {len(self.selected)} recipients automatically." + (" Stop and start the active watch to apply changes." if self.runtime and self.runtime.get("desktop_watch") else ""))
+        self.status.set_text("Stop and start the active watch to apply changes." if self.runtime and self.runtime.get("desktop_watch") else "")
         self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
         return True
 
@@ -546,7 +572,7 @@ class TargetPicker(Gtk.Window):
             self.status.set_text("Select at least one target before sending.")
             return
         selected = list(self.selected.values())
-        text = self.signal.get_text()
+        text = self._prompt_text()
         if any(t.signal_actions()[0] for t in selected) and not text.strip():
             self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
             return
