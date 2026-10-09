@@ -13,10 +13,10 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
 from .config import AppConfig, config_path
-from .autostart import is_autostart_enabled
+from .autostart import is_autostart_enabled, set_autostart
 from .quota import discover_codex, fetch_quota
 from . import tray_control
-from .target_delivery import deliver_targets, open_target, recover_target
+from .target_delivery import open_target, send_signals
 from .targets import Target, discover_targets
 
 
@@ -30,6 +30,7 @@ class TargetPicker(Gtk.Window):
         self.targets = dict(self.selected)
         self.busy = False
         self.closed = False
+        self._updating_startup = False
         self.runtime = None
         self.runtime_busy = False
         self.quota_busy = False
@@ -37,7 +38,7 @@ class TargetPicker(Gtk.Window):
         self.quota = None
         self.quota_error = ""
         self.quota_updated = None
-        self.saved_signature = self._signature(self.config.targets(), self.config.continue_prompt, self.config.goal_mode) if config_path().exists() else None
+        self.saved_signature = self._signature(self.config.targets(), self.config.continue_prompt) if config_path().exists() else None
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         box.set_border_width(14)
         self.add(box)
@@ -49,32 +50,46 @@ class TargetPicker(Gtk.Window):
         self.startup_label = Gtk.Label(label="Startup: checking…", xalign=0)
         self.quota_label = Gtk.Label(label="Quota: loading…", xalign=0, selectable=True)
         self.quota_label.set_line_wrap(True)
-        for widget in (self.watch_label, self.startup_label, self.quota_label):
-            dashboard.pack_start(widget, False, False, 0)
         controls = Gtk.Box(spacing=8)
         self.watch_button = Gtk.Button(label="Start Desktop watch")
         self.watch_button.connect("clicked", self.toggle_watch)
         self.watch_button.set_sensitive(False)
+        watch_row = Gtk.Box(spacing=8)
+        watch_row.pack_start(self.watch_button, False, False, 0)
+        watch_row.pack_start(self.watch_label, True, True, 0)
+        dashboard.pack_start(watch_row, False, False, 0)
+        startup_row = Gtk.Box(spacing=8)
+        self.startup_toggle = Gtk.CheckButton()
+        self.startup_toggle.set_tooltip_text("Run Codex Charge in the tray when you log in")
+        self.startup_toggle.connect("toggled", self.toggle_startup)
+        startup_row.pack_start(self.startup_toggle, False, False, 0)
+        startup_row.pack_start(self.startup_label, True, True, 0)
+        dashboard.pack_start(startup_row, False, False, 0)
+        dashboard.pack_start(self.quota_label, False, False, 0)
         self.quota_button = Gtk.Button(label="Refresh quota")
         self.quota_button.connect("clicked", self.refresh_quota)
         self.settings_button = Gtk.Button(label="Settings…")
         self.settings_button.connect("clicked", self.settings)
-        for widget in (self.watch_button, self.quota_button, self.settings_button):
+        for widget in (self.quota_button, self.settings_button):
             controls.pack_start(widget, False, False, 0)
         dashboard.pack_start(controls, False, False, 0)
         box.pack_start(dashboard, False, False, 0)
         self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
         box.pack_start(self.search, False, False, 0)
-        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str)
+        self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str, bool)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
         self.table = Gtk.TreeView(model=self.filtered)
         self.table.set_has_tooltip(True)
         self.table.connect("query-tooltip", self._tooltip)
-        checkbox = Gtk.CellRendererToggle()
-        checkbox.connect("toggled", self._toggle)
-        self.table.append_column(Gtk.TreeViewColumn("Select", checkbox, active=0))
+        for label, index, action in (("Prompt", 0, "send_prompt"), ("Goal", 12, "send_goal")):
+            checkbox = Gtk.CellRendererToggle()
+            checkbox.connect("toggled", self._toggle, action)
+            column = Gtk.TreeViewColumn(label, checkbox, active=index)
+            if action == "send_goal":
+                column.set_cell_data_func(checkbox, self._goal_cell)
+            self.table.append_column(column)
         columns = [("Title", 1, 270), ("Task status", 10, 170), ("Goal status", 11, 140),
                    ("Kind", 2, 80), ("Availability", 3, 160), ("ID", 4, 295),
                    ("PID", 5, 95), ("Instance", 6, 260), ("Deep link", 7, 400),
@@ -93,23 +108,18 @@ class TargetPicker(Gtk.Window):
         box.pack_start(scroller, True, True, 0)
         self.inventory_status = Gtk.Label(label="Discovering targets…", xalign=0)
         self.inventory_status.set_line_wrap(True)
-        self.inventory_status.set_tooltip_text("Chat statuses refresh every 15 seconds. Task state comes from Codex's live desktop owner when available; goal state also uses the saved goal database. Windows do not identify a fixed chat. Unavailable means the state could not be read.")
+        self.inventory_status.set_tooltip_text("Chat statuses refresh every 15 seconds. Prompt sends only the message; Goal resumes without a prompt. Goal is available for chat IDs. Task state comes from Codex's live desktop owner when available; goal state also uses the saved goal database. Windows do not identify a fixed chat. Unavailable means the state could not be read.")
         box.pack_start(self.inventory_status, False, False, 0)
         self.summary = Gtk.Label(xalign=0, selectable=True)
         box.pack_start(self.summary, False, False, 0)
         self.save_state = Gtk.Label(xalign=0)
         box.pack_start(self.save_state, False, False, 0)
         prompt = Gtk.Box(spacing=8)
-        prompt.pack_start(Gtk.Label(label="Signal text:"), False, False, 0)
+        prompt.pack_start(Gtk.Label(label="Prompt message:"), False, False, 0)
         self.signal = Gtk.Entry(text=self.config.continue_prompt)
         prompt.pack_start(self.signal, True, True, 0)
         box.pack_start(prompt, False, False, 0)
-        self.goal = Gtk.CheckButton(label="Resume quota-stopped goals when quota recovers")
-        self.goal.set_tooltip_text("Automatic recovery for chat-ID targets: reactivate usage-limited goals through Codex's native API, verify the goal, then send your Signal text. Paused, blocked, complete, budget-limited, and already-running goals are left alone. No-goal chats receive Signal text. Window targets require this option to be off. Also recovers selected usage-limited goals when the watch starts after quota has returned. With this option enabled, Resume goals now also resumes paused goals explicitly, verifies activation, then sends Signal text. Otherwise Send signal now sends only text.")
-        self.goal.set_active(self.config.goal_mode)
         self.signal.connect("changed", lambda _: self._summary())
-        self.goal.connect("toggled", lambda _: self._summary())
-        box.pack_start(self.goal, False, False, 0)
         self.status = Gtk.Label(label="Choose recipients, then save your selection.", xalign=0, selectable=True)
         self.status.set_line_wrap(True)
         box.pack_start(self.status, False, False, 0)
@@ -117,7 +127,7 @@ class TargetPicker(Gtk.Window):
         self.buttons = []
         for label, action in (("Refresh", self.refresh), ("Open selected row", self.open_row),
                               ("Copy link / ID", self.copy_row), ("Save selection", self.save),
-                              ("Send signal now", self.send)):
+                              ("Send signals", self.send)):
             button = Gtk.Button(label=label)
             button.connect("clicked", action)
             buttons.pack_start(button, False, False, 0)
@@ -149,32 +159,42 @@ class TargetPicker(Gtk.Window):
         query = self.search.get_text().casefold()
         return not query or query in " ".join(str(model[iterator][i]) for i in range(1, 12)).casefold()
 
-    def _toggle(self, _renderer, path):
+    @staticmethod
+    def _goal_cell(_column, renderer, model, iterator, _data):
+        available = model[iterator][2] == "thread"
+        renderer.set_property("activatable", available)
+        renderer.set_property("sensitive", available)
+
+    def _toggle(self, _renderer, path, action="send_prompt"):
         if self.busy:
             return
         row = self.filtered[path]
         target = self.targets[row[6] + "\0" + row[4]]
-        row[0] = not row[0]
-        if row[0]:
+        if action == "send_goal" and target.kind != "thread":
+            self.status.set_text("Goal signals need a chat ID. Window recipients support Prompt only.")
+            return
+        column = 0 if action == "send_prompt" else 12
+        row[column] = not row[column]
+        target = replace(target, send_prompt=row[0], send_goal=row[12])
+        if row[0] or row[12]:
             self.selected[target.key] = target
         else:
             self.selected.pop(target.key, None)
         self._summary()
 
     @staticmethod
-    def _signature(targets, text, goal):
-        return (frozenset(t.key for t in targets), text, goal)
+    def _signature(targets, text):
+        return (frozenset((t.key, *t.signal_actions()) for t in targets), text)
 
     def dirty(self):
-        return self._signature(self.selected.values(), self.signal.get_text(), self.goal.get_active()) != self.saved_signature
+        return self._signature(self.selected.values(), self.signal.get_text()) != self.saved_signature
 
     def _summary(self):
-        self.send_button.set_label("Resume goals now" if self.goal.get_active() else "Send signal now")
-        detail = " Native goal recovery requires chat-ID targets; turn it off to use window recipients." if self.goal.get_active() and any(t.kind != "thread" for t in self.selected.values()) else ""
-        self.summary.set_text(f"{len(self.selected)} target(s) selected. Chat signals go to those IDs; window signals go to their current chat." + detail)
+        prompts = sum(t.signal_actions()[0] for t in self.selected.values())
+        goals = sum(t.signal_actions()[1] for t in self.selected.values())
+        self.summary.set_text(f"{len(self.selected)} recipient(s) · Prompt: {prompts} · Goal: {goals}. When both are enabled, Goal activation is verified before the prompt is sent.")
         self.summary.set_line_wrap(True)
-        dirty = self.dirty()
-        self.save_state.set_markup("<b>Unsaved changes — click Save selection.</b>" if dirty else "<b>Saved — selection and signal match your settings.</b>")
+        self.save_state.set_markup("<b>Unsaved changes — click Save selection.</b>" if self.dirty() else "<b>Saved — recipients, signals and prompt match your settings.</b>")
         self._render_runtime()
 
     def _destroy(self, *_):
@@ -208,7 +228,7 @@ class TargetPicker(Gtk.Window):
             self.runtime = value
             try:
                 saved = AppConfig.load()
-                self.saved_signature = self._signature(saved.targets(), saved.continue_prompt, saved.goal_mode) if config_path().exists() else None
+                self.saved_signature = self._signature(saved.targets(), saved.continue_prompt) if config_path().exists() else None
                 self._summary()
             except Exception as exc:
                 self.status.set_text(f"Could not read settings: {exc}")
@@ -239,11 +259,38 @@ class TargetPicker(Gtk.Window):
         self.watch_button.set_label("Stop Desktop watch" if alive else "Start Desktop watch")
         self.watch_button.set_sensitive(not self.busy and not self.runtime_busy and not stopping and not runtime.get("cli_running", False))
         try:
-            startup = "Enabled" if is_autostart_enabled() else "Disabled"
+            enabled = is_autostart_enabled()
+            startup = "Enabled" if enabled else "Disabled"
+            self._updating_startup = True
+            try:
+                self.startup_toggle.set_active(enabled)
+            finally:
+                self._updating_startup = False
         except OSError:
             startup = "Unavailable"
         launched = "Yes" if runtime.get("launched_at_startup") else "No" if self.runtime else "Unknown (tray unavailable)"
         self.startup_label.set_text(f"Run at login: {startup} · This tray started at login: {launched}")
+
+    def toggle_startup(self, *_):
+        if self._updating_startup or self.busy:
+            return
+        enabled = self.startup_toggle.get_active()
+        def save():
+            previous = is_autostart_enabled()
+            config = AppConfig.load()
+            config.autostart = enabled
+            set_autostart(enabled)
+            try:
+                config.save()
+            except Exception:
+                set_autostart(previous)
+                raise
+            return config
+        def show(config):
+            self.config = config
+            self.status.set_text("Run at login enabled." if enabled else "Run at login disabled.")
+            self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
+        self._work(save, show)
 
     def toggle_watch(self, *_):
         if self.runtime and self.runtime.get("desktop_watch"):
@@ -256,7 +303,6 @@ class TargetPicker(Gtk.Window):
                 self.status.set_text("Select and save at least one target before starting Desktop watch.")
                 return
             command = "start-watch"
-        goal_recovery = self.goal.get_active()
         def control():
             try:
                 live = tray_control.request(timeout=1)
@@ -274,8 +320,8 @@ class TargetPicker(Gtk.Window):
                         if time.monotonic() >= deadline:
                             raise RuntimeError("Tray did not start; check the tray log")
                         time.sleep(.2)
-            if command == "start-watch" and goal_recovery and live.get("native_goal_recovery") is not True:
-                raise RuntimeError("Restart the tray to use native goal recovery; the running tray is an older version.")
+            if command == "start-watch" and live.get("per_target_signals") is not True:
+                raise RuntimeError("Restart the tray to use per-recipient Prompt / Goal signals; the running tray is an older version.")
             return tray_control.request(command)
         def show(value):
             self.runtime = value
@@ -337,7 +383,7 @@ class TargetPicker(Gtk.Window):
         for button in self.buttons:
             button.set_sensitive(not active)
         self.signal.set_sensitive(not active)
-        self.goal.set_sensitive(not active)
+        self.startup_toggle.set_sensitive(not active)
         self.table.set_sensitive(not active)
         self.settings_button.set_sensitive(not active)
         self._render_runtime()
@@ -362,7 +408,8 @@ class TargetPicker(Gtk.Window):
     def _apply_inventory(self, inventory):
         live = {t.key: t for t in inventory.targets}
         for key, saved in list(self.selected.items()):
-            self.selected[key] = live.get(key, replace(saved, task_status="Unavailable", goal_status="Unavailable"))
+            self.selected[key] = replace(live.get(key, replace(saved, task_status="Unavailable", goal_status="Unavailable")),
+                                         send_prompt=saved.send_prompt, send_goal=saved.send_goal)
         targets = {**live, **{k: t for k, t in self.selected.items() if k not in live}}
         self.targets = {t.instance + "\0" + t.id: t for t in targets.values()}
         # Update existing rows in place so refresh preserves focus and scrolling.
@@ -375,10 +422,11 @@ class TargetPicker(Gtk.Window):
             else:
                 rows[key] = row.iter
         for key, target in targets.items():
-            values = [key in self.selected, target.title, target.kind,
+            choice = self.selected.get(key)
+            values = [choice.send_prompt if choice else False, target.title, target.kind,
                 target.status if key in live else "Unavailable — saved selection",
                 target.id, str(target.pid or ""), target.instance, target.deeplink, target.cwd,
-                target.owner_id, target.task_status, target.goal_status]
+                target.owner_id, target.task_status, target.goal_status, choice.send_goal if choice else False]
             iterator = rows.get(key)
             if iterator is None:
                 self.store.append(values)
@@ -436,16 +484,12 @@ class TargetPicker(Gtk.Window):
             self.status.set_text(str(exc))
 
     def save(self, *_):
-        if self.goal.get_active() and any(t.kind != "thread" for t in self.selected.values()):
-            self.status.set_text("Native goal recovery needs chat-ID recipients. Select chats or turn goal recovery off to save window recipients.")
-            return
-        if not self.signal.get_text().strip():
-            self.status.set_text("Enter a signal before saving.")
+        if any(t.signal_actions()[0] for t in self.selected.values()) and not self.signal.get_text().strip():
+            self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
             return
         config = AppConfig.load()
         config.desktop_targets = [t.to_dict() for t in self.selected.values()]
         config.continue_prompt = self.signal.get_text()
-        config.goal_mode = self.goal.get_active()
         config.mode = "desktop"
         try:
             config.save()
@@ -453,7 +497,7 @@ class TargetPicker(Gtk.Window):
             self.status.set_text(f"Could not save selection: {exc}")
             return
         self.config = config
-        self.saved_signature = self._signature(self.selected.values(), config.continue_prompt, config.goal_mode)
+        self.saved_signature = self._signature(self.selected.values(), config.continue_prompt)
         self._summary()
         self.status.set_text(f"Saved {len(self.selected)} targets for quota-reset signals." + (" Stop and start the active watch to apply changes." if self.runtime and self.runtime.get("desktop_watch") else ""))
         self._background(lambda: tray_control.request("reload"), lambda *_: self.poll_runtime())
@@ -464,24 +508,19 @@ class TargetPicker(Gtk.Window):
             return
         selected = list(self.selected.values())
         text = self.signal.get_text()
-        if not text.strip():
-            self.status.set_text("Enter a signal before sending.")
+        if any(t.signal_actions()[0] for t in selected) and not text.strip():
+            self.status.set_text("Enter a prompt message for recipients with Prompt enabled.")
             return
-        native = self.goal.get_active()
-        if native and any(t.kind != "thread" for t in selected):
-            self.status.set_text("Native goal recovery requires chat-ID recipients. Select chats or turn goal recovery off.")
-            return
-        self.status.set_text(f"{'Resuming goals' if native else 'Sending signal'} for {len(selected)} selected targets…")
+        self.status.set_text(f"Sending signals to {len(selected)} selected recipients…")
         def show(results):
             accepted = sum(r.success and not r.skipped for r in results)
             skipped = sum(r.skipped for r in results)
             failed = sum(not r.success for r in results)
             detail = "\n".join(f"{r.target.title} [{r.target.id}]: {r.detail}" for r in results)
-            self.status.set_text(f"{'Goal recovery' if native else 'Signal'}: {accepted} accepted, {skipped} skipped, {failed} failed.\n" + detail)
+            self.status.set_text(f"Signals: {accepted} accepted, {skipped} skipped, {failed} failed.\n" + detail)
             self.status.set_tooltip_text(detail)
             self.refresh_statuses()
-        self._work(lambda: [recover_target(t, text, manual=True) for t in selected]
-                   if native else deliver_targets(selected, text), show)
+        self._work(lambda: send_signals(selected, text, manual=True), show)
 
 
 def main(*, settings=False):

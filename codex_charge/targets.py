@@ -27,6 +27,13 @@ class Target:
     owner_id: str = ""
     task_status: str = "Unavailable"
     goal_status: str = "Unavailable"
+    # None marks legacy selections; the GUI persists explicit booleans.
+    send_prompt: bool | None = None
+    send_goal: bool | None = None
+
+    def signal_actions(self, legacy_goal=False):
+        return (True if self.send_prompt is None else self.send_prompt,
+                legacy_goal and self.kind == "thread" if self.send_goal is None else self.send_goal)
 
     @property
     def key(self):

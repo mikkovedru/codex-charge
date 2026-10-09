@@ -15,7 +15,7 @@ MAX_MESSAGE = 65536
 
 
 def watch_settings(config):
-    return {"targets": sorted(t.key for t in config.targets()),
+    return {"targets": [list(row) for row in sorted((t.key, *t.signal_actions()) for t in config.targets())],
             "signal": config.continue_prompt, "goal": config.goal_mode,
             "grace": config.grace_seconds, "poll": config.poll_seconds,
             "codex_path": config.codex_path}

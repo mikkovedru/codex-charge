@@ -61,7 +61,7 @@ def test_config_roundtrip():
     b = replace(a, instance="/profile/two")
     config = AppConfig(desktop_targets=[a.to_dict(), b.to_dict()])
     config.save()
-    assert AppConfig.load().targets() == [a, b]
+    assert AppConfig.load().targets() == [replace(t, send_prompt=True, send_goal=True) for t in (a, b)]
     assert a.key != b.key
 
 
@@ -247,7 +247,7 @@ def test_cli_selects_ids_with_duplicate_titles(monkeypatch, capsys):
     assert cli.main(["targets", "--select", "a", "--select", "b", "--json"]) == 0
     result = json.loads(capsys.readouterr().out)
     assert all(t["selected"] for t in result["targets"])
-    assert AppConfig.load().targets() == [a,b]
+    assert AppConfig.load().targets() == [replace(t, send_prompt=True, send_goal=False) for t in (a, b)]
 
 
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Literal
 
@@ -84,4 +84,10 @@ class AppConfig:
 
     def targets(self):
         from .targets import Target
-        return [Target.from_dict(value) for value in (self.desktop_targets or [])]
+        result = []
+        for value in self.desktop_targets or []:
+            target = Target.from_dict(value)
+            prompt, goal = target.signal_actions(self.goal_mode)
+            if prompt or goal:
+                result.append(replace(target, send_prompt=prompt, send_goal=goal))
+        return result

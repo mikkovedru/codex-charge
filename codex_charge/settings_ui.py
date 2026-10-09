@@ -39,7 +39,7 @@ class SettingsDialog(Gtk.Dialog):
             widget.set_hexpand(True)
             grid.attach(widget, 1, index, 1, 1)
         grid.attach(self.autostart, 0, 6, 2, 1)
-        note = Gtk.Label(label="Signal text and goal mode are in the main window.\nStartup launches the tray; Desktop watch starts when you turn it on.\nChanges to an active watch apply after you stop and start it.", xalign=0)
+        note = Gtk.Label(label="Prompt text and each recipient’s Prompt / Goal choices are in the main window.\nStartup launches the tray; Desktop watch starts when you turn it on.\nChanges to an active watch apply after you stop and start it.", xalign=0)
         note.set_line_wrap(True)
         grid.attach(note, 0, 7, 2, 1)
         self.error = Gtk.Label(xalign=0)

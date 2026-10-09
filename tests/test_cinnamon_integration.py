@@ -71,7 +71,8 @@ def stage(callback):
     def run():
         try: callback()
         except Exception as exc:
-            errors.append(repr(exc))
+            import traceback
+            errors.append(traceback.format_exc())
             app.exit_app(app._icon)
         return False
     return run

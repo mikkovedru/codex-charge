@@ -48,7 +48,7 @@ codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 
 Auto-continue **Codex CLI** and the **ChatGPT Codex desktop app** after 5-hour / 7-day usage limits reset.
 
-When quota is exhausted, codex-charge waits for recovery and the grace period, then continues selected tasks. Desktop goal recovery uses verified native goal activation followed by Signal text; CLI Goal mode enters `/goal resume` in the terminal on its first recovery.
+When quota is exhausted, codex-charge waits for recovery and the grace period, then continues selected tasks. Desktop recipients have independent Prompt and Goal signals; CLI Goal mode enters `/goal resume` in the terminal on its first recovery.
 
 ### Features
 
@@ -127,7 +127,7 @@ Config file: `~/.codex-charge/config.json`
 |---------|-------------|
 | `language` | `en` or `zh` |
 | `mode` | `cli` or `desktop` |
-| `goal_mode` | Desktop: verified native recovery of quota-stopped goals; CLI: first `/goal resume` |
+| `goal_mode` | CLI: first `/goal resume`; migration default for old Desktop selections |
 | `grace_seconds` | Extra wait after reset (default `60`) |
 | `continue_prompt` | Text to send (default `继续`) |
 | `desktop_targets` | Saved chat/window recipient identities |
@@ -433,7 +433,7 @@ codex-charge configure --lang zh --mode desktop --goal
 |--------|------|
 | `language` | `en` 或 `zh` |
 | `mode` | `cli` 或 `desktop` |
-| `goal_mode` | 桌面：原生恢复额度受限目标；CLI：首次发送 `/goal resume` |
+| `goal_mode` | CLI：首次发送 `/goal resume`；旧版桌面选择的迁移默认值 |
 | `grace_seconds` | 恢复后额外等待秒数（默认 `60`） |
 | `continue_prompt` | 自动发送文本（默认 `继续`） |
 | `desktop_window_titles` | 桌面版窗口标题匹配 |
@@ -708,16 +708,24 @@ The GUI shows saved/unsaved selection, task and goal status refreshed every 15 s
 live quota usage and reset countdowns,
 startup registration and launch origin, and the actual Desktop watch state.
 Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
-Enable **Resume quota-stopped goals when quota recovers** for verified native
-recovery of selected Linux chat IDs. Each recovery preserves the existing goal
-and accounting, skips paused/completed/blocked/budget-limited goals and busy
-tasks, and sends Signal text after activation. Window recipients require this
-option to be off. With this option enabled, the manual button becomes
-**Resume goals now**: it also resumes paused goals through the native API,
-verifies activation, then sends Signal text to continue work. The result for
-each chat appears below the button; skipped goals are reported separately.
-With the option disabled, **Send signal now** sends only Signal text. Starting watch
-after quota has recovered also recovers selected usage-limited goals.
+Each row has independent **Prompt** and **Goal** checkboxes. Use **Send signals**
+for an immediate send, or save the choices for quota-reset delivery:
+
+- **Prompt** sends only the configured prompt message.
+- **Goal** verifies native activation and continues the goal without a user prompt.
+- **Both** verifies Goal activation first, then sends the prompt to continue work.
+- **Neither** excludes the recipient. Window recipients support Prompt only.
+
+Goal activation preserves the existing objective, budget and usage history.
+Manual sends may resume paused goals; automatic quota recovery respects intentional
+pauses and skips blocked, completed, budget-limited or already-running goals.
+An independently selected Prompt still sends when the Goal action is skipped;
+a failed or unconfirmed Goal action prevents the subsequent prompt. Results for
+each recipient appear in the window. Starting watch after quota has recovered
+also recovers selected usage-limited goals, after the grace period.
+The checkbox before **Run at login** enables or disables startup directly;
+the watch button is beside its **Desktop watch: On/Off** status.
+Old selections migrate to Prompt, or Prompt + Goal when old goal recovery was enabled.
 Saved changes to an active watch take effect when it is stopped and started.
 
 Choose targets before starting desktop watch. Local saved chats are included;

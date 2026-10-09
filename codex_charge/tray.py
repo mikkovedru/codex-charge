@@ -310,7 +310,7 @@ class TrayApp:
             raise ValueError("Unknown tray command")
         thread = self._watch_thread
         alive = thread is not None and thread.is_alive()
-        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True, "gui_control": True,
+        return {"pid": os.getpid(), "desktop_watch": alive, "native_goal_recovery": True, "gui_control": True, "per_target_signals": True,
                 "stopping": alive and self._watch_stop.is_set(),
                 "cli_running": self._proc is not None and self._proc.poll() is None,
                 "launched_at_startup": self.launched_at_startup,

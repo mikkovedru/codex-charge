@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 import argparse
 import sys
 import json
@@ -107,6 +108,10 @@ def _cmd_watch(argv: list[str]) -> int:
     parser.add_argument("--continue", dest="continue_prompt", default=None)
     ns = parser.parse_args(argv)
 
+    recipients = user.targets()
+    if ns.goal is not None:
+        recipients = [replace(target, send_goal=ns.goal and target.kind == "thread",
+                              send_prompt=target.send_prompt if ns.goal else True) for target in recipients]
     config = WatchConfig(
         codex_path=ns.codex or user.codex_path,
         continue_prompt=ns.continue_prompt or user.continue_prompt,
@@ -114,7 +119,7 @@ def _cmd_watch(argv: list[str]) -> int:
         grace_seconds=ns.grace if ns.grace is not None else user.grace_seconds,
         poll_seconds=user.poll_seconds,
         desktop_window_titles=user.window_titles(),
-        desktop_targets=tuple(user.targets()),
+        desktop_targets=tuple(recipients),
     )
     return run_desktop_watch(config)
 
@@ -142,15 +147,20 @@ def _cmd_targets(argv):
                 parser.error(f"Target {value!r} is unavailable or ambiguous; use its full key from --json")
             if matches[0].key not in {t.key for t in selection}:
                 selection.append(matches[0])
-        config.desktop_targets = [t.to_dict() for t in selection]
+        previous = {t.key: t for t in config.targets()}
+        config.desktop_targets = [replace(t,
+            send_prompt=previous[t.key].send_prompt if t.key in previous else True,
+            send_goal=previous[t.key].send_goal if t.key in previous else False).to_dict() for t in selection]
         config.mode = "desktop"
         config.save()
     elif ns.clear:
         config.desktop_targets = []
         config.save()
-    selected = {t.key for t in config.targets()}
+    selected = {t.key: t for t in config.targets()}
     if ns.json:
-        print(json.dumps({"targets": [dict(t.to_dict(), key=t.key, selected=t.key in selected) for t in inventory.targets], "warnings": inventory.warnings}, indent=2, ensure_ascii=False))
+        print(json.dumps({"targets": [dict(t.to_dict(), key=t.key, selected=t.key in selected,
+                send_prompt=selected[t.key].send_prompt if t.key in selected else False,
+                send_goal=selected[t.key].send_goal if t.key in selected else False) for t in inventory.targets], "warnings": inventory.warnings}, indent=2, ensure_ascii=False))
     else:
         for t in inventory.targets:
             print(f"{'[x]' if t.key in selected else '[ ]'} {t.kind:6} {t.title}\n    ID: {t.id}  PID: {t.pid or '—'}  Instance: {t.instance}\n    Task: {t.task_status}  Goal: {t.goal_status}\n    {t.deeplink or t.status}")

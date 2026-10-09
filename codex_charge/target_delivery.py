@@ -59,7 +59,7 @@ def _send_thread(target, text):
         desktop.send(target.id, text, _owner_for_delivery(desktop, target))
 
 
-def recover_target(target, text, *, manual=False, enter_presses=1, key_delay=.12):
+def recover_target(target, text, *, manual=False, send_prompt=True, require_goal=False, enter_presses=1, key_delay=.12):
     """Activate quota-stopped goals, then continue in the desktop owner.
 
     Explicit manual recovery may also resume paused goals. Automatic recovery
@@ -67,15 +67,17 @@ def recover_target(target, text, *, manual=False, enter_presses=1, key_delay=.12
     """
     if target.kind != "thread":
         return DeliveryResult(target, False,
-            "Native goal recovery requires a chat ID; select a chat or disable goal recovery", retryable=False)
+            "Native goal recovery requires a chat ID; select a chat or turn off Goal for this recipient", retryable=False)
     from .goal_control import NativeGoals
     try:
         if not target.instance or Path(target.endpoint).resolve() != (Path(target.instance) / "ipc/ipc.sock").resolve():
             raise ValueError("Desktop endpoint does not match the selected Codex profile")
-        if not text.strip():
+        if send_prompt and not text.strip():
             raise ValueError("Signal text cannot be empty")
         with NativeGoals(target.instance) as goals:
             goal = goals.get(target.id)
+            if require_goal and goal is None:
+                return DeliveryResult(target, True, "Skipped — chat has no goal", skipped=True)
             protected = {"blocked", "budgetLimited", "complete"}
             if not manual:
                 protected.add("paused")
@@ -109,7 +111,10 @@ def recover_target(target, text, *, manual=False, enter_presses=1, key_delay=.12
                     if goal is not None and (fresh is None or fresh.get("createdAt") != goal.get("createdAt")
                             or fresh.get("objective") != goal.get("objective")):
                         return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
-                desktop.send(target.id, text, owner)
+                if send_prompt:
+                    desktop.send(target.id, text, owner)
+                else:
+                    desktop.continue_goal(target.id, owner)
                 if goal is not None:
                     try:
                         after = goals.get(target.id)
@@ -119,6 +124,8 @@ def recover_target(target, text, *, manual=False, enter_presses=1, key_delay=.12
                             raise ValueError("Goal changed after continuation")
                     except Exception as exc:
                         raise DeliveryUncertain("Continuation accepted, but the resulting goal state was not confirmed; check this chat") from exc
+                if not send_prompt:
+                    return DeliveryResult(target, True, "Goal continuation accepted; no prompt sent")
                 return DeliveryResult(target, True,
                     "Native goal activation verified; continuation accepted" if resumed else
                     "No goal; continuation accepted" if goal is None else "Goal already active; continuation accepted")
@@ -190,5 +197,32 @@ def deliver_targets(targets, text, *, enter_presses=1, key_delay=.12):
         except Exception as exc:
             result = DeliveryResult(target, False, str(exc))
         _log.info("target=%s success=%s detail=%s", target.id, result.success, result.detail)
+        results.append(result)
+    return results
+
+
+def send_signals(targets, text, *, manual=False, enter_presses=1, key_delay=.12):
+    """Honor each recipient's actions. Goal activation precedes its prompt."""
+    results, seen = [], set()
+    for target in targets:
+        if target.key in seen:
+            continue
+        seen.add(target.key)
+        prompt, goal = target.signal_actions()
+        if not prompt and not goal:
+            result = DeliveryResult(target, True, "Skipped — no signals selected", skipped=True)
+        elif prompt and not text.strip():
+            result = DeliveryResult(target, False, "Prompt message cannot be empty", retryable=False)
+        elif goal:
+            result = recover_target(target, text, manual=manual, send_prompt=prompt,
+                require_goal=True, enter_presses=enter_presses, key_delay=key_delay)
+            if result.skipped and prompt:
+                # Independent Prompt selection still applies if no resumable
+                # goal exists. A failed/unconfirmed goal action never falls through.
+                sent = deliver_targets([target], text, enter_presses=enter_presses, key_delay=key_delay)[0]
+                result = DeliveryResult(target, sent.success,
+                    f"Goal: {result.detail}; Prompt: {sent.detail}", sent.retryable, sent.skipped)
+        else:
+            result = deliver_targets([target], text, enter_presses=enter_presses, key_delay=key_delay)[0]
         results.append(result)
     return results

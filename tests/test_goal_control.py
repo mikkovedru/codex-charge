@@ -122,6 +122,10 @@ def install_recovery(monkeypatch, *, status="usageLimited", task="systemError", 
         def __exit__(self, *args): pass
         def owner(self, thread): assert thread == "chosen"; return "exact-owner"
         def status_snapshot(self, thread, owner): return {"task": None if task is None else {"type": task}, "goal": snapshot_goal}
+        def continue_goal(self, thread, owner):
+            assert owner == "exact-owner" and thread == "chosen"
+            state["sent"].append(None)
+            if send_error: raise send_error
         def send(self, thread, text, owner):
             assert owner == "exact-owner" and thread == "chosen"
             state["sent"].append(text)
@@ -215,7 +219,8 @@ def test_post_send_goal_verification_failure_does_not_retry(monkeypatch):
 
 @pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires the installed native Codex backend")
 @pytest.mark.parametrize("status", ["usageLimited", "paused"])
-def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, status):
+@pytest.mark.parametrize("goal_only", [False, True])
+def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, status, goal_only):
     import json
     import os
     import queue
@@ -289,7 +294,7 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
             assert after[key] == before[key]
         assert control.call("thread/loaded/list", {})["data"] == []
         turn = original.call("turn/start", {"threadId": thread_id,
-            "input": [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
+            "input": [] if goal_only else [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
         assert turn["status"] == "inProgress"
         assert original.call("thread/goal/get", {"threadId": thread_id})["goal"]["status"] == "active"
         assert control.call("thread/loaded/list", {})["data"] == []
@@ -374,3 +379,58 @@ def test_manual_empty_signal_never_activates_goal(monkeypatch):
     state = install_recovery(monkeypatch, status="paused")
     assert not delivery.recover_target(TARGET, " ", manual=True).success
     assert not state["sent"] and not state["resumes"]
+
+
+@pytest.mark.parametrize("prompt,goal,expected", [(True, False, ["Custom"]), (False, True, [None]), (True, True, ["Custom"]), (False, False, [])])
+def test_independent_signal_actions(monkeypatch, prompt, goal, expected):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    target = replace(TARGET, send_prompt=prompt, send_goal=goal)
+    result = delivery.send_signals([target], "Custom", manual=True)[0]
+    assert result.success and state["sent"] == expected
+    assert state["resumes"] == int(goal)
+    assert result.skipped == (not prompt and not goal)
+
+
+def test_goal_only_accepts_empty_prompt_and_never_sends_text(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    result = delivery.send_signals([replace(TARGET, send_prompt=False, send_goal=True)], "", manual=True)[0]
+    assert result.success and state["sent"] == [None] and "no prompt" in result.detail
+
+
+def test_goal_activation_precedes_prompt(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    original = delivery.DesktopIPC
+    class Ordered(original):
+        def send(self, *args):
+            assert state["goal"]["status"] == "active" and state["resumes"] == 1
+            super().send(*args)
+    monkeypatch.setattr(delivery, "DesktopIPC", Ordered)
+    result = delivery.send_signals([replace(TARGET, send_prompt=True, send_goal=True)], "Custom", manual=True)[0]
+    assert result.success and state["sent"] == ["Custom"]
+
+
+def test_goal_failure_does_not_fall_back_to_prompt(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task=None)
+    result = delivery.send_signals([replace(TARGET, send_prompt=True, send_goal=True)], "Custom", manual=True)[0]
+    assert not result.success and not state["sent"]
+
+
+@pytest.mark.parametrize("prompt", [False, True])
+def test_missing_goal_never_uses_empty_continuation(monkeypatch, prompt):
+    state = install_recovery(monkeypatch, status=None, task="idle")
+    result = delivery.send_signals([replace(TARGET, send_prompt=prompt, send_goal=True)], "Custom", manual=True)[0]
+    assert result.success and state["sent"] == (["Custom"] if prompt else [])
+    assert result.skipped == (not prompt)
+
+
+def test_goal_continuation_ipc_contains_no_user_message(monkeypatch):
+    from codex_charge.codex_ipc import DesktopIPC
+    ipc, calls = DesktopIPC("unused"), []
+    def request(method, params, **kwargs):
+        calls.append((method, params, kwargs))
+        return {"handledByClientId": "owner", "result": {"result": {"turn": {"id": "goal-turn"}}}}
+    monkeypatch.setattr(ipc, "request", request)
+    ipc.continue_goal("chosen", "owner")
+    assert calls[0][1]["turnStart"]["request"]["input"] == []
+    assert calls[0][1]["turnStart"]["context"] == {"inheritThreadSettings": True}
+    assert calls[0][2]["target_client"] == "owner"

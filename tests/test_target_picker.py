@@ -58,9 +58,9 @@ def check():
         window.filtered.refilter()
         assert len(window.filtered) == 1
         window._toggle(None, "0")
-        assert list(window.selected.values()) == [beta]
+        assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
         assert window.dirty() and "Unsaved" in window.save_state.get_text()
-        assert [c.get_title() for c in window.table.get_columns()][2:4] == ["Task status", "Goal status"]
+        assert [c.get_title() for c in window.table.get_columns()][:5] == ["Prompt", "Goal", "Title", "Task status", "Goal status"]
         window.table.get_selection().select_path("0")
         target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
         window.refresh_statuses()
@@ -91,59 +91,77 @@ def check():
         window.search.set_text("")
         window.filtered.refilter()
         window._toggle(None, "0")
-        window.goal.set_active(False)
         window.signal.set_text("Continue")
         window.save()
         saved = AppConfig.load()
         assert {t.id for t in saved.targets()} == {"alpha", "beta"}
         assert saved.continue_prompt == "Continue"
-        assert not saved.goal_mode
+        assert all(t.send_prompt and not t.send_goal for t in saved.targets())
         assert not window.dirty() and "Saved" in window.save_state.get_text()
         window.signal.set_text("Edited")
         assert window.dirty()
         window.signal.set_text("Continue")
         assert not window.dirty()
-        # Manual sends must honor the CURRENT checkbox, even before saving.
+        # Each row independently retains Prompt and Goal, including unsaved edits.
         deliveries = []
-        def send_text(targets, text):
-            deliveries.append(("text", [t.id for t in targets], text))
-            return [DeliveryResult(t, True, "Signal accepted") for t in targets]
-        def resume_goal(target, text, *, manual=False):
-            deliveries.append(("goal", target.id, text, manual))
-            return DeliveryResult(target, True, "Native goal activation verified; continuation accepted")
-        target_ui.deliver_targets = send_text
-        target_ui.recover_target = resume_goal
-        assert window.send_button.get_label() == "Send signal now"
+        def send_signals(targets, text, *, manual=False):
+            deliveries.append(([(t.id, t.send_prompt, t.send_goal) for t in targets], text, manual))
+            return [DeliveryResult(t, True, "Selected signals accepted") for t in targets]
+        target_ui.send_signals = send_signals
+        assert window.send_button.get_label() == "Send signals"
+        assert not hasattr(window, "goal")
+        window._toggle(None, "1", "send_goal")  # beta: both
+        window._toggle(None, "1", "send_prompt")  # beta: Goal only
+        assert window.selected[beta.key].signal_actions() == (False, True)
+        window.refresh_statuses()
+        idle()
+        assert window.selected[beta.key].signal_actions() == (False, True)
+        assert window.dirty()
         window.send()
         idle()
-        assert deliveries == [("text", [t.id for t in window.selected.values()], "Continue")]
-        deliveries.clear()
-        window.goal.set_active(True)
-        assert window.send_button.get_label() == "Resume goals now" and window.dirty()
-        window.send()
-        idle()
-        assert {entry[1] for entry in deliveries} == {"alpha", "beta"}
-        assert all(entry[0] == "goal" and entry[2:] == ("Continue", True) for entry in deliveries)
-        assert "Goal recovery: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
-        assert "activation verified" in window.status.get_text()
-        target_ui.recover_target = lambda target, text, **kw: DeliveryResult(target, True, "Skipped — goal is complete", skipped=True)
-        window.send()
-        idle()
-        assert "0 accepted, 2 skipped, 0 failed" in window.status.get_text()
-        deliveries.clear()
-        window.signal.set_text(" ")
-        window.send()
-        assert "Enter a signal" in window.status.get_text() and not deliveries
-        window.signal.set_text("Continue")
+        assert deliveries == [([("beta", False, True), ("alpha", True, False)], "Continue", True)]
+        assert "Signals: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
         window.save()
         idle()
+        assert {t.id: t.signal_actions() for t in AppConfig.load().targets()} == {"alpha": (True, False), "beta": (False, True)}
+        assert not window.dirty()
         window.toggle_watch()
         idle()
         assert "Restart the tray" in window.status.get_text()
         assert "start-watch" not in commands
-        window.goal.set_active(False)
+        runtime["per_target_signals"] = True
+        # Blank text is valid for Goal-only recipients, and invalid for Prompt.
+        window._toggle(None, "0", "send_prompt")
+        window.signal.set_text(" ")
+        window.send()
+        idle()
+        assert deliveries[-1] == ([("beta", False, True)], " ", True)
+        window._toggle(None, "0", "send_prompt")
+        window.send()
+        assert "Enter a prompt" in window.status.get_text()
+        window.signal.set_text("Continue")
         window.save()
         idle()
+        # Dashboard controls precede their own status text.
+        assert window.watch_label.get_parent().get_children()[0] is window.watch_button
+        assert window.startup_label.get_parent().get_children()[0] is window.startup_toggle
+        assert not window.startup_toggle.get_active()
+        window.startup_toggle.set_active(True)
+        idle()
+        assert autostart.is_autostart_enabled() and AppConfig.load().autostart
+        assert "Run at login: Enabled" in window.startup_label.get_text()
+        assert not window.dirty()
+        window.startup_toggle.set_active(False)
+        idle()
+        assert not autostart.is_autostart_enabled() and not AppConfig.load().autostart
+        # Failed startup changes restore the checkbox to the actual OS state.
+        original_autostart = target_ui.set_autostart
+        target_ui.set_autostart = lambda _: (_ for _ in ()).throw(OSError("startup write failed"))
+        window.startup_toggle.set_active(True)
+        idle()
+        assert "startup write failed" in window.status.get_text()
+        assert not window.startup_toggle.get_active() and not AppConfig.load().autostart
+        target_ui.set_autostart = original_autostart
         # A failed automatic refresh must not show the last statuses as live.
         target_ui.discover_targets = lambda: (_ for _ in ()).throw(RuntimeError("disconnected"))
         window.refresh_statuses()
@@ -190,7 +208,8 @@ def check():
         assert "42%" in window.quota_label.get_text()
         assert "Latest refresh failed: offline" in window.quota_label.get_text()
     except Exception as exc:
-        errors.append(str(exc))
+        import traceback
+        errors.append(traceback.format_exc())
     finally:
         window.destroy()
     return False

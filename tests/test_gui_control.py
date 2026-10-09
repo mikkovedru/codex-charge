@@ -99,7 +99,7 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
         assert not tray_control.request()["desktop_watch"]
         status = tray_control.request("start-watch")
         assert status["desktop_watch"] and status["launched_at_startup"]
-        assert status["watch_settings"]["targets"] == [Target("thread", "a", "A").key]
+        assert status["watch_settings"]["targets"] == [[Target("thread", "a", "A").key, True, True]]
         changed = AppConfig.load()
         changed.continue_prompt = "New signal"
         changed.save()

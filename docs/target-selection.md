@@ -59,11 +59,13 @@ keeps the tray and watch running. Double-click the icon to hide the visible
 dashboard to the tray, or restore it with unsaved edits intact. GUI launch
 commands and **Open Codex Charge…** always show the dashboard. Right-click for
 the tray menu, including **Exit** to quit.
-Search by title, ID, project, PID or deep link. Check several rows, edit the signal,
-and use **Save selection** for quota-reset delivery. With goal recovery disabled,
-**Send signal now** sends the visible text to the checked rows. With recovery
-enabled, **Resume goals now** activates paused or quota-stopped goals first.
-**Open selected row** opens a chat without sending.
+Search by title, ID, project, PID or deep link. Enable **Prompt**, **Goal**, or both
+for each recipient, edit the prompt message, and use **Save selection** for
+quota-reset delivery. **Send signals** uses the current choices, including
+unsaved changes. Prompt sends only the message. Goal resumes natively and starts
+continuation without a prompt. Both activates the goal first, then sends the
+prompt. Window rows support Prompt only. **Open selected row** opens a chat
+without sending.
 Metadata columns can be resized and scrolled; hovering a row shows full values.
 
 The dashboard explicitly marks the selection and signal as **Saved** or
@@ -112,7 +114,7 @@ origin; enabled older entries are migrated when the updated tray starts.
 
 **Settings…** opens a GTK editor for language, default mode, Codex CLI path and
 arguments, reset grace, polling interval, and startup registration. The tray's
-Settings menu opens this editor too. Signal text and goal mode remain visible
+Settings menu opens this editor too. Prompt text and per-recipient signal choices remain visible
 in the main window. Saved settings and recipients apply on the next watch start;
 a running watch explicitly indicates when its settings differ from the saved
 ones. Stop and start it to apply changes. Configuration is saved atomically.
@@ -144,33 +146,26 @@ owner before sending. No model, permission or workspace changes are requested.
 Ordinary signals are text input; this path does not emulate the composer's
 slash-command UI handlers. Native goal recovery is a separate operation:
 
-When **Resume quota-stopped goals when quota recovers** is enabled, each recovery
-reads the selected chat's current goal through the existing, same-user Codex
-daemon for that profile. Native `thread/goal/get` and `thread/goal/set` share the
-persisted goal with the desktop even when the daemon has not loaded that chat.
-The adapter never starts a server, loads a second copy of the chat, replaces an
-objective, resets accounting, or overrides a budget.
+Each saved recipient carries independent `send_prompt` and `send_goal` flags.
+The GUI no longer has a global goal-recovery toggle. Legacy selections migrate
+using the old `goal_mode` value, which remains a CLI option. New CLI `--select`
+recipients default to Prompt only; `targets --json` reports saved action choices.
 
-A **usageLimited** goal is rechecked after desktop owner discovery, then activated
-with `thread/goal/set {threadId, status: "active"}`. The response and a fresh native
-read must confirm the same goal, budget and usage history. The configured Signal
-text then starts a turn through that chat's desktop owner; another goal read
-confirms the resulting state. No `/goal resume` text is injected. A completed
-goal may legitimately finish during continuation; unverified state after an
-accepted turn is reported as uncertain and is not automatically retried.
+For Goal, the adapter reads the selected chat's goal through the existing same-user
+Codex daemon. Native `thread/goal/get` and `thread/goal/set` share persisted state
+with the desktop even when that daemon has not loaded the chat. No objective,
+budget or usage history is replaced. Activation is rechecked and verified before
+continuation through the desktop's current owner. Goal-only uses a turn with an
+empty input list, so no user prompt is added. With both choices enabled, verified
+Goal activation is followed by one turn carrying the selected prompt.
 
-Automatic recovery skips **paused**, **blocked**, **budgetLimited**, and
-**complete** goals.
-Running tasks, including those waiting for approval or user input, are skipped.
-Chats with no goal and idle active goals use the normal Signal text. A goal that
-changes while discovery is in progress is left alone. A missing native control
-source fails visibly instead of assuming there is no goal or sending a slash
-command. Window recipients cannot identify a goal and require goal recovery to
-be off. With goal recovery enabled, manual **Resume goals now** also activates
-paused goals through the same native API before sending Signal text. Automatic
-quota recovery continues to respect intentional pauses. With the option off,
-**Send signal now** sends only the Signal text field. The GUI reports accepted,
-skipped and failed targets separately and refreshes their statuses after sending.
+Manual sends may activate paused goals. Automatic recovery leaves intentional
+pauses alone. Goal actions skip missing, blocked, budget-limited, complete or
+already-running goals. When Prompt is also selected, skipped Goal actions are
+reported and the independent Prompt still sends. Failed or uncertain Goal
+activation prevents prompt fallback. Ambiguous continuation acknowledgement is
+not retried automatically in the same reset. Window identities cannot identify
+an individual goal, so their Goal checkbox is disabled.
 
 This applies on every quota recovery, replacing the old once-per-watch first
 message behavior. Starting a watch after quota has recovered also finds selected

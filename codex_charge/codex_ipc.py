@@ -146,13 +146,20 @@ class DesktopIPC:
         return response["handledByClientId"]
 
     def send(self, thread_id, text, owner):
+        return self._start_turn(thread_id, [{"type": "text", "text": text, "text_elements": []}], owner)
+
+    def continue_goal(self, thread_id, owner):
+        """Wake the existing active goal without adding a user prompt."""
+        return self._start_turn(thread_id, [], owner)
+
+    def _start_turn(self, thread_id, inputs, owner):
         # Request routing is pinned to the owner discovered for this exact ID.
         # No model, permissions or workspace overrides are sent.
         try:
             response = self.request("thread-follower-start-turn", {
                 "conversationId": thread_id,
                 "turnStart": {"request": {"threadId": thread_id,
-                    "input": [{"type": "text", "text": text, "text_elements": []}],
+                    "input": inputs,
                     "clientUserMessageId": str(uuid.uuid4())},
                     "context": {"inheritThreadSettings": True}},
             }, version=2, target_client=owner)
