@@ -54,31 +54,33 @@ Open **Open Codex Charge…** in the tray, or run `codex-charge gui`, `codex-cha
 The root `codex-charge --help` lists both GUI command forms. A Linux release
 contains the CLI, tray, and dedicated GUI launcher; keep them together.
 All GUI launch commands start the tray too. Further launches reuse the same tray
-and present its existing window, preserving unsaved edits. Closing the window
+and present its existing window, preserving the current view. Closing the window
 keeps the tray and watch running. Double-click the icon to hide the visible
-dashboard to the tray, or restore it with unsaved edits intact. GUI launch
+dashboard to the tray, or restore it with the current view intact. GUI launch
 commands and **Open Codex Charge…** always show the dashboard. Right-click for
 the tray menu, including **Exit** to quit.
 Search by title, ID, project, PID or deep link. Enable **Prompt**, **Goal**, or both
-for each recipient, edit the prompt message, and use **Save selection** for
-quota-reset delivery. **Send signals** uses the current choices, including
-unsaved changes. Prompt sends only the message. Goal resumes natively and starts
+for each recipient and edit the prompt message. These changes save automatically
+for quota-reset delivery. **Send signals** uses the current choices immediately.
+Prompt sends only the message. Goal resumes natively and starts
 continuation without a prompt. Both activates the goal first, then sends the
 prompt. Window rows support Prompt only. **Open selected row** opens a chat
 without sending.
 Metadata columns can be resized and scrolled; hovering a row shows full values.
 
-The dashboard explicitly marks the selection and signal as **Saved** or
-**Unsaved changes**, including edits made by another open picker. Save before
-starting Desktop watch. The **Start/Stop Desktop watch** button controls the
-tray's actual worker, and status updates every two seconds. A stopping worker
+The dashboard confirms automatic saving and shows write failures with automatic
+retries while the window is open. Changes made by another picker are reported
+without overwriting them during refresh. The **Start/Stop Desktop watch** button
+controls the tray's actual worker. Its adjacent status has a green border when
+On and a red border when Off, and updates every two seconds. A stopping worker
 must finish before another starts. If the tray is absent, Start launches it.
 Closing the picker leaves the tray and active watch running.
 
 The list includes separate **Task status** and **Goal status** columns next to
 its title. Status and target discovery refresh every 15 seconds without clearing
-your choices or unsaved edits; **Refresh** updates them immediately. The list
-shows the last refresh time. Search also matches both status columns.
+your choices; **Refresh** updates them immediately. Directly below the list,
+**Refresh** appears on the left, followed by the last refresh time, with
+**Copy link / ID** on the right. Search also matches both status columns.
 
 Task status reports **Running**, **Waiting for approval**, **Waiting for input**,
 **Idle**, **Error**, or **Not loaded**. For an open local chat, a temporary,

@@ -684,7 +684,8 @@ Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher wor
 ## Choose Codex signal recipients
 
 The tray menu now has **Open Codex Charge…**. Select one or several chats or
-windows, then save the selection for quota-reset signals. The picker shows titles,
+windows; checkbox and prompt changes save automatically for quota-reset signals.
+The picker shows titles,
 thread/window IDs, process IDs, profiles, deep links, projects and live desktop
 owners. Chat targets address a stable ID; window targets use the chat and focused
 input currently shown in that window.
@@ -702,14 +703,14 @@ For a release archive, keep all three executables together. `codex-charge --help
 lists both GUI commands. GUI launch commands also start the tray, or reuse the
 running tray and bring its dashboard forward. Closing the window keeps the tray
 and its watch available. Double-click the tray icon to hide the open dashboard
-to the tray or restore it, preserving unsaved edits. Right-click for the tray menu. Use **Exit** in that menu to quit the application.
+to the tray or restore it, preserving the current view. Right-click for the tray menu. Use **Exit** in that menu to quit the application.
 
-The GUI shows saved/unsaved selection, task and goal status refreshed every 15 seconds,
+The GUI confirms automatic saving, shows task and goal status refreshed every 15 seconds,
 live quota usage and reset countdowns,
 startup registration and launch origin, and the actual Desktop watch state.
 Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
 Each row has independent **Prompt** and **Goal** checkboxes. Use **Send signals**
-for an immediate send, or save the choices for quota-reset delivery:
+for an immediate send; the choices also persist for quota-reset delivery:
 
 - **Prompt** sends only the configured prompt message.
 - **Goal** verifies native activation and continues the goal without a user prompt.
@@ -724,7 +725,9 @@ a failed or unconfirmed Goal action prevents the subsequent prompt. Results for
 each recipient appear in the window. Starting watch after quota has recovered
 also recovers selected usage-limited goals, after the grace period.
 The checkbox before **Run at login** enables or disables startup directly;
-the watch button is beside its **Desktop watch: On/Off** status.
+the watch button is beside its **Desktop watch: On/Off** status, bordered green
+when On and red when Off. **Refresh** and **Copy link / ID** sit directly below
+the list, on either side of the inventory status.
 Old selections migrate to Prompt, or Prompt + Goal when old goal recovery was enabled.
 Saved changes to an active watch take effect when it is stopped and started.
 

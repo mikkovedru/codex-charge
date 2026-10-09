@@ -54,12 +54,21 @@ def check():
         assert "42%" in window.quota_label.get_text()
         assert "Weekly" in window.quota_label.get_text() and "resets" in window.quota_label.get_text()
         assert "started at login: Yes" in window.startup_label.get_text()
+        # The toolbar immediately follows the list: Refresh, status, Copy.
+        toolbar = window.list_toolbar
+        assert toolbar.get_children() == [window.refresh_button, window.inventory_status, window.copy_button]
+        siblings = toolbar.get_parent().get_children()
+        assert siblings[siblings.index(toolbar)-1] is window.table.get_parent()
+        assert "Save selection" not in [button.get_label() for button in window.buttons]
+        assert "watch-off" in window.watch_label.get_style_context().list_classes()
+        color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
+        assert color.red > .7 and color.green < .2 and color.alpha == 1
         window.search.set_text("beta")
         window.filtered.refilter()
         assert len(window.filtered) == 1
         window._toggle(None, "0")
         assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
-        assert window.dirty() and "Unsaved" in window.save_state.get_text()
+        assert not window.dirty() and "Saved automatically" in window.save_state.get_text()
         assert [c.get_title() for c in window.table.get_columns()][:5] == ["Prompt", "Goal", "Title", "Task status", "Goal status"]
         window.table.get_selection().select_path("0")
         target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
@@ -67,7 +76,7 @@ def check():
         assert not window.busy and window.table.get_sensitive()
         idle()
         assert window._row_target().id == "beta"
-        assert window.dirty() and list(window.selected) == [beta.key]
+        assert not window.dirty() and list(window.selected) == [beta.key]
         assert window.filtered[0][10:12] == ["Waiting for input", "Blocked"]
         assert "Every 15 seconds" in window.inventory_status.get_text()
         window.search.set_text("blocked")
@@ -86,23 +95,24 @@ def check():
         window.refresh_statuses()
         idle()
         window.toggle_watch()
-        assert "Save selection" in window.status.get_text()
+        idle()
+        assert "Restart the tray" in window.status.get_text()
         assert "start-watch" not in commands
         window.search.set_text("")
         window.filtered.refilter()
         window._toggle(None, "0")
         window.signal.set_text("Continue")
-        window.save()
         saved = AppConfig.load()
         assert {t.id for t in saved.targets()} == {"alpha", "beta"}
         assert saved.continue_prompt == "Continue"
         assert all(t.send_prompt and not t.send_goal for t in saved.targets())
         assert not window.dirty() and "Saved" in window.save_state.get_text()
         window.signal.set_text("Edited")
-        assert window.dirty()
+        assert AppConfig.load().continue_prompt == "Edited"
+        assert not window.dirty()
         window.signal.set_text("Continue")
         assert not window.dirty()
-        # Each row independently retains Prompt and Goal, including unsaved edits.
+        # Each row independently persists Prompt and Goal through refreshes.
         deliveries = []
         def send_signals(targets, text, *, manual=False):
             deliveries.append(([(t.id, t.send_prompt, t.send_goal) for t in targets], text, manual))
@@ -111,17 +121,17 @@ def check():
         assert window.send_button.get_label() == "Send signals"
         assert not hasattr(window, "goal")
         window._toggle(None, "1", "send_goal")  # beta: both
+        assert {t.id: t.signal_actions() for t in AppConfig.load().targets()}["beta"] == (True, True)
         window._toggle(None, "1", "send_prompt")  # beta: Goal only
         assert window.selected[beta.key].signal_actions() == (False, True)
         window.refresh_statuses()
         idle()
         assert window.selected[beta.key].signal_actions() == (False, True)
-        assert window.dirty()
+        assert not window.dirty()
         window.send()
         idle()
         assert deliveries == [([("beta", False, True), ("alpha", True, False)], "Continue", True)]
         assert "Signals: 2 accepted, 0 skipped, 0 failed" in window.status.get_text()
-        window.save()
         idle()
         assert {t.id: t.signal_actions() for t in AppConfig.load().targets()} == {"alpha": (True, False), "beta": (False, True)}
         assert not window.dirty()
@@ -140,7 +150,6 @@ def check():
         window.send()
         assert "Enter a prompt" in window.status.get_text()
         window.signal.set_text("Continue")
-        window.save()
         idle()
         # Dashboard controls precede their own status text.
         assert window.watch_label.get_parent().get_children()[0] is window.watch_button
@@ -187,6 +196,9 @@ def check():
         idle()
         assert "Desktop watch: On" in window.watch_label.get_text()
         assert window.watch_button.get_label() == "Stop Desktop watch"
+        assert "watch-on" in window.watch_label.get_style_context().list_classes()
+        color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
+        assert color.green > .45 and color.red < .15 and color.alpha == 1
         changed = AppConfig.load()
         changed.poll_seconds += 1
         changed.save()
@@ -196,12 +208,33 @@ def check():
         window.toggle_watch()
         idle()
         assert "Desktop watch: Off" in window.watch_label.get_text()
+        assert "watch-off" in window.watch_label.get_style_context().list_classes()
+        # Deselecting the last action removes that recipient on disk immediately.
+        window._toggle(None, "1", "send_goal")
+        assert {t.id for t in AppConfig.load().targets()} == {"alpha"}
+        window._toggle(None, "1", "send_goal")
+        assert {t.id: t.signal_actions() for t in AppConfig.load().targets()} == {"alpha": (True, False), "beta": (False, True)}
+        # Failed writes remain visibly unsaved and retry without losing choices.
+        idle()
+        before = AppConfig.load().desktop_targets
+        original_save = AppConfig.save
+        AppConfig.save = lambda _: (_ for _ in ()).throw(OSError("disk unavailable <test>"))
+        window._toggle(None, "1", "send_prompt")
+        assert AppConfig.load().desktop_targets == before
+        assert window.dirty() and "Could not save automatically" in window.save_state.get_text()
+        assert "<test>" in window.save_state.get_text()
+        AppConfig.save = original_save
+        window.poll_runtime()
+        idle()
+        assert not window.dirty() and not window.autosave_error
+        assert {t.id: t.signal_actions() for t in AppConfig.load().targets()}["beta"] == (True, True)
         changed = AppConfig.load()
         changed.continue_prompt = "External edit"
         changed.save()
         window.poll_runtime()
         idle()
-        assert window.dirty() and "Unsaved" in window.save_state.get_text()
+        assert window.dirty() and "differ from saved settings" in window.save_state.get_text()
+        assert AppConfig.load().continue_prompt == "External edit"
         target_ui.fetch_quota = lambda _: (_ for _ in ()).throw(RuntimeError("offline"))
         window.refresh_quota()
         idle()
