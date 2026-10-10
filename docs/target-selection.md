@@ -127,7 +127,8 @@ For goals, **Active** is green, **Paused** and **Usage limited** are yellow,
 checkmark. Persisted `usage_limited` and `budget_limited` are displayed as
 **Usage limited** and **Budget limited**.
 
-The multi-line status area scrolls and retains recent messages. Warnings are
+The multi-line status area scrolls and retains recent messages, each prefixed
+with the local date and time (`YYYY-MM-DD HH:MM:SS`). Warnings are
 yellow, errors red, and signal sending/results green. Saving, startup toggles
 and watch start/restart messages use the normal theme text color. Mixed sends
 show each recipient's result in its own color, with a red summary for failures
@@ -135,6 +136,8 @@ or yellow for skipped actions. Long logs are bounded and new messages do not
 move the scroll position while you are reading older diagnostics.
 
 Live quota shows usage, local reset dates, and a countdown for each limit.
+The 5-hour and weekly lines are colored independently: normal theme text below
+85% used, yellow from 85%, and red at 100% or above.
 Quota refreshes automatically every minute and can be refreshed manually; the
 countdown updates every second. A failed refresh keeps the last known values
 with their age and the error. Quota requests time out if Codex stops responding.

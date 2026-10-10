@@ -25,7 +25,7 @@ from .status_log import StatusLog
 class TargetPicker(Gtk.Window):
     def __init__(self, *, quit_on_close=True):
         self.quit_on_close = quit_on_close
-        super().__init__(title="Codex Charge — Choose targets")
+        super().__init__(title="Codex Charge")
         self.set_default_size(1120, 740)
         self.config = AppConfig.load()
         self.selected = {t.key: t for t in self.config.targets()}
@@ -49,9 +49,6 @@ class TargetPicker(Gtk.Window):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         box.set_border_width(14)
         self.add(box)
-        intro = Gtk.Label(label="Choose chats by ID, or windows for the chat currently shown there. You can select several.")
-        intro.set_xalign(0)
-        box.pack_start(intro, False, False, 0)
         dashboard = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.watch_label = Gtk.Label(label="Desktop watch: checking…", xalign=0)
         self.watch_label.set_line_wrap(True)
@@ -465,11 +462,13 @@ class TargetPicker(Gtk.Window):
             minutes, seconds = divmod(remainder, 60)
             countdown = (f"{days}d " if days else "") + f"{hours:02}:{minutes:02}:{seconds:02}"
             reset = time.strftime("%a %d %b %H:%M:%S", time.localtime(window.resets_at))
-            return f"{label}: {window.used_percent:g}% used · resets {reset} ({countdown})"
+            text = GLib.markup_escape_text(f"{label}: {window.used_percent:g}% used · resets {reset} ({countdown})")
+            level = "error" if window.used_percent >= 100 else "warning" if window.used_percent >= 85 else None
+            return f'<span foreground="{COLORS[level]}">{text}</span>' if level else text
         lines = [window_text(w) for w in (self.quota.primary, self.quota.secondary) if w is not None]
         age = max(0, int(time.time() - self.quota_updated))
         lines.append(f"Quota refreshed {age}s ago · automatic refresh every 60s" + (" · Latest refresh failed — see messages below" if self.quota_error else ""))
-        self.quota_label.set_text("\n".join(lines))
+        self.quota_label.set_markup("\n".join(lines))
         return True
 
     def settings(self, *_):

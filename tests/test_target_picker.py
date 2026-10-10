@@ -50,6 +50,8 @@ def check():
     if window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         return True
     try:
+        assert window.get_title() == "Codex Charge"
+        assert not any(isinstance(child, Gtk.Label) and "Choose chats by ID" in child.get_text() for child in window.get_child().get_children())
         assert not hasattr(window, "save_state")
         assert "42%" in window.quota_label.get_text()
         assert "Weekly" in window.quota_label.get_text() and "resets" in window.quota_label.get_text()
@@ -67,13 +69,58 @@ def check():
         assert isinstance(window.status, Gtk.ScrolledWindow)
         assert window.status.get_allocated_height() >= 96 and not window.status.view.get_editable()
         from codex_charge.status_display import COLORS, TASK_STATES, GOAL_STATES, status_level
-        for level in ("normal", "warning", "error", "success"):
-            window._message("Message " + level, level)
-            assert window.status.latest_level == level
-            last = window.status.buffer.get_end_iter()
-            last.backward_char()
-            assert [tag.get_property("name") for tag in last.get_tags()] == [level]
-            assert window.status.buffer.get_tag_table().lookup(level).get_property("foreground-set") == (level != "normal")
+        # Each window gets its own threshold color, including recovery to normal.
+        for primary, secondary in ((84.9,85), (85,100), (99.9,84.9), (100,99.9), (101,0), (0,0)):
+            window.quota = replace(current_quota,
+                primary=replace(current_quota.primary, used_percent=primary),
+                secondary=replace(current_quota.secondary, used_percent=secondary))
+            window.render_quota()
+            markup_lines = window.quota_label.get_label().split("\n")
+            for line, percent in zip(markup_lines[:2], (primary,secondary)):
+                if percent >= 100:
+                    assert line.startswith('<span foreground="' + COLORS["error"] + '">')
+                elif percent >= 85:
+                    assert line.startswith('<span foreground="' + COLORS["warning"] + '">')
+                else:
+                    assert "<span" not in line
+                assert f"{percent:g}% used" in line
+            assert "<span" not in markup_lines[2]
+            # GTK parses the colors while selectable text stays free of markup.
+            assert "<span" not in window.quota_label.get_text()
+            layout = window.quota_label.get_layout()
+            attributes = layout.get_attributes()
+            foregrounds = [line for line in attributes.to_string().splitlines() if " foreground " in line]
+            expected = []
+            offset = 0
+            for line, percent in zip(window.quota_label.get_text().split("\n")[:2], (primary,secondary)):
+                length = len(line.encode("utf-8"))
+                if percent >= 85:
+                    color = COLORS["error" if percent >= 100 else "warning"]
+                    pango_color = "#" + "".join(color[i:i+2]*2 for i in (1,3,5))
+                    expected.append(f"{offset} {offset+length} foreground {pango_color}")
+                offset += length + 1
+            assert foregrounds == expected, (foregrounds, expected)
+        window.quota = current_quota
+        window.render_quota()
+        from datetime import datetime
+        from unittest.mock import patch
+        from codex_charge import status_log
+        local_time = datetime(2026,10,10,14,23,45).astimezone()
+        with patch.object(status_log, "datetime") as clock:
+            clock.now.return_value = local_time
+            for level in ("normal", "warning", "error", "success"):
+                window._message("Message " + level, level)
+                assert window.status.latest_text == "Message " + level
+                assert window.status.latest_level == level
+                last = window.status.buffer.get_end_iter()
+                last.backward_char()
+                assert [tag.get_property("name") for tag in last.get_tags()] == [level]
+                assert window.status.buffer.get_tag_table().lookup(level).get_property("foreground-set") == (level != "normal")
+            window._message("First line\nSecond line", "warning")
+        log_text = window.status.buffer.get_text(window.status.buffer.get_start_iter(), window.status.buffer.get_end_iter(), True)
+        assert log_text.endswith("\n".join("[2026-10-10 14:23:45] Message " + level for level in ("normal", "warning", "error", "success")) + "\n[2026-10-10 14:23:45] First line\nSecond line")
+        window._message("")
+        assert window.status.buffer.get_text(window.status.buffer.get_start_iter(), window.status.buffer.get_end_iter(), True) == log_text
         window._message("\n".join("Long diagnostic line " + str(i) for i in range(60)), "error")
         while Gtk.events_pending(): Gtk.main_iteration_do(False)
         adjustment = window.status.get_vadjustment()

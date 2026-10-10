@@ -1,4 +1,6 @@
 """A bounded, selectable, scrollable GTK message log with per-message colors."""
+from datetime import datetime
+
 from gi.repository import GLib, Gtk
 from .status_display import COLORS
 
@@ -33,7 +35,8 @@ class StatusLog(Gtk.ScrolledWindow):
         self.latest_text, self.latest_level = message, level
         if self.buffer.get_char_count():
             self.buffer.insert(self.buffer.get_end_iter(), "\n")
-        self.buffer.insert_with_tags_by_name(self.buffer.get_end_iter(), message, level)
+        entry = f"[{datetime.now().astimezone():%Y-%m-%d %H:%M:%S}] {message}"
+        self.buffer.insert_with_tags_by_name(self.buffer.get_end_iter(), entry, level)
         # Bound memory while preserving recent text and its tags.
         if self.buffer.get_line_count() > 1000:
             end = self.buffer.get_iter_at_line(self.buffer.get_line_count() - 1000)
