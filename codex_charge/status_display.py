@@ -33,7 +33,5 @@ def status_level(value, *, goal=False):
 
 def status_tooltip(value, *, goal=False):
     states = GOAL_STATES if goal else TASK_STATES
-    description = " ".join(states.get(part, ("warning", "This state is not recognized by this version."))[1]
-                           for part in value.split(" / "))
     legend = "\n".join(f"{name}: {text}" for name, (_, text) in states.items())
-    return f"{value}: {description}\n\n{'Goal' if goal else 'Task'} statuses\n{legend}"
+    return f"{'Goal' if goal else 'Task'} statuses\n{legend}"

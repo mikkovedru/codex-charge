@@ -115,8 +115,8 @@ Disconnected saved selections remain listed with unavailable statuses.
 The public runtime and goal states are documented in the
 [Codex App Server reference](https://learn.chatgpt.com/docs/app-server).
 
-Task and goal cells are colored and explain the current state and all supported
-states on hover. **Running** (active) is green; **Waiting for approval** and
+Task and goal cells are colored. Their headings include information icons; hover
+the cells or headings for a single legend of all supported states. **Running** (active) is green; **Waiting for approval** and
 **Waiting for input** are yellow; **Error** is red. **Idle** and **Not loaded**
 use normal text, and **Unavailable** is yellow. A task can need both approval
 and input simultaneously. **Active** is also accepted as a green display label.
@@ -137,7 +137,8 @@ move the scroll position while you are reading older diagnostics.
 
 Live quota shows usage, local reset dates, and a countdown for each limit.
 The 5-hour and weekly lines are colored independently: normal theme text below
-85% used, yellow from 85%, and red at 100% or above.
+85% used, yellow from 85%, and red at 100% or above. Color stops after `used`;
+the separator, reset date and countdown keep the theme's normal text color.
 Quota refreshes automatically every minute and can be refreshed manually; the
 countdown updates every second. A failed refresh keeps the last known values
 with their age and the error. Quota requests time out if Codex stops responding.
@@ -192,24 +193,41 @@ using the old `goal_mode` value, which remains a CLI option. New CLI `--select`
 recipients default to Prompt only; `targets --json` reports saved action choices.
 
 For Goal, the adapter reads the selected chat's goal through the existing same-user
-Codex daemon. Native `thread/goal/get` and `thread/goal/set` share persisted state
-with the desktop even when that daemon has not loaded the chat. No objective,
-budget or usage history is replaced. Activation is rechecked and verified before
-continuation through the desktop's current owner. Goal-only uses a turn with an
-empty input list, so no user prompt is added. With both choices enabled, verified
-Goal activation is followed by one turn carrying the selected prompt.
+Codex daemon. Reads share persisted state, but writing a goal through that daemon
+does not update the desktop owner's cached goal or its continuation dispatcher.
+The Linux adapter therefore opens the selected chat and uses its native **Resume
+goal** button through accessibility. It verifies the desktop process, copies only
+the selected sidebar chat's canonical deep link to check its exact ID, and restores
+all clipboard formats through the desktop clipboard manager. Titles are never used
+to choose the chat: if deep-link navigation does not select it, a title only narrows
+sidebar candidates, whose IDs are checked before opening any row. No objective,
+budget or usage history is replaced.
 
-Manual sends may activate paused goals even during an active prompt turn.
-Goal-only changes the native goal state and lets that existing turn continue; it
-does not submit another empty turn. Both still activates the goal before its
-independently selected prompt. Activation verification allows usage to advance
-during a running turn, but rejects accounting resets and budget changes. Automatic recovery leaves intentional
-pauses alone. Goal actions skip missing, blocked, budget-limited, complete or
-already-running goals during automatic recovery. When Prompt is also selected, skipped Goal actions are
-reported and the independent Prompt still sends. Failed or uncertain Goal
-activation prevents prompt fallback. Ambiguous continuation acknowledgement is
-not retried automatically in the same reset. Window identities cannot identify
-an individual goal, so their Goal checkbox is disabled.
+Activation must change the native button to **Pause goal** and be confirmed in
+both saved goal state and the owner's live snapshot. Goal-only never starts an
+empty user turn or sends a prompt: Codex's native goal dispatcher handles the
+continuation. An already active goal needs no further activation. Manual sends
+may resume a paused goal during an existing prompt turn without starting a
+competing turn. With both signals selected, the prompt follows verified Goal
+activation; if Codex has already started a turn, the prompt steers that turn.
+
+The native control currently targets the installed English Linux desktop UI and
+requires X11, accessibility, `xdotool`, and a clipboard manager (present on Mint
+Cinnamon). Source installations also need `python3-pyatspi`; release builds bundle
+the Python accessibility adapter and native typelib. Identity lookup uses pointer
+and native menu actions only: it never sends Escape, which can cancel a Codex turn.
+Missing or incompatible controls fail visibly;
+there is no fallback to an empty turn. Native UI actions are serialized across
+processes and time-limited. Unconfirmed activation or delivery is not retried
+automatically, and prevents the independently selected prompt from sending.
+
+Activation verification allows usage to advance during a running turn, but rejects
+accounting resets and budget changes. Automatic recovery respects intentional
+pauses in both saved state and the desktop cache. Goal actions skip missing,
+blocked, budget-limited, complete or already-running goals during automatic
+recovery. When Prompt is also selected, skipped Goal actions are reported and the
+independent Prompt still sends. Window identities cannot identify an individual
+goal, so their Goal checkbox is disabled.
 
 This applies on every quota recovery, replacing the old once-per-watch first
 message behavior. Starting a watch after quota has recovered also finds selected

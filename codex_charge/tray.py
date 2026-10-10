@@ -435,6 +435,9 @@ class TrayApp:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["--resume-goal-ui"]:
+        from .desktop_goal_ui import main as goal_ui
+        return goal_ui()
     if sys.platform not in {"win32", "linux"}:
         sys.stderr.write("codex-charge tray supports Windows and Linux only.\n")
         return 1

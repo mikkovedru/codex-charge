@@ -96,8 +96,12 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                 if goal is None and snapshot.get("goal") == "complete":
                     return DeliveryResult(target, True, "Skipped — goal is complete", skipped=True)
                 resumed = False
-                if goal is not None and goal["status"] in {"usageLimited", "paused"}:
-                    resumed = goals.resume(target.id, goal, allow_paused=manual)
+                if not manual and snapshot.get("goal") == "paused":
+                    return DeliveryResult(target, True, "Skipped — desktop goal is paused", skipped=True)
+                if goal is not None and (goal["status"] in {"usageLimited", "paused"}
+                        or manual and snapshot.get("goal") in {"paused", "usageLimited"}):
+                    resumed = goals.resume(target.id, goal, allow_paused=manual, allow_active=manual,
+                        activate=lambda: desktop.resume_goal(target, goal))
                     if not resumed:
                         return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
                 else:
@@ -111,10 +115,18 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                     if goal is not None and (fresh is None or fresh.get("createdAt") != goal.get("createdAt")
                             or fresh.get("objective") != goal.get("objective")):
                         return DeliveryResult(target, True, "Skipped — goal changed before recovery", skipped=True)
+                if goal is not None:
+                    snapshot = desktop.status_snapshot(target.id, owner)
+                    if snapshot.get("goal") not in {"active", "complete"}:
+                        raise DeliveryUncertain("Native Goal activation was not visible in the desktop; no prompt sent")
+                    task = snapshot.get("task")
+                    if not isinstance(task, dict) or task.get("type") not in {"active", "idle", "systemError"}:
+                        raise DeliveryUncertain("Native Goal was activated, but its task state could not be verified; no prompt sent")
                 if send_prompt:
-                    desktop.send(target.id, text, owner)
-                elif task["type"] != "active":
-                    desktop.continue_goal(target.id, owner)
+                    if goal is not None and task["type"] == "active":
+                        desktop.steer(target.id, text, owner)
+                    else:
+                        desktop.send(target.id, text, owner)
                 if goal is not None:
                     try:
                         after = goals.get(target.id)
@@ -127,7 +139,7 @@ def recover_target(target, text, *, manual=False, send_prompt=True, require_goal
                 if not send_prompt:
                     return DeliveryResult(target, True,
                         "Native goal activation verified; current turn continues, no prompt sent" if task["type"] == "active" else
-                        "Goal continuation accepted; no prompt sent")
+                        "Native goal activation verified in the desktop; no prompt sent")
                 return DeliveryResult(target, True,
                     "Native goal activation verified; continuation accepted" if resumed else
                     "No goal; continuation accepted" if goal is None else "Goal already active; continuation accepted")

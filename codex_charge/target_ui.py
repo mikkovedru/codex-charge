@@ -116,9 +116,14 @@ class TargetPicker(Gtk.Window):
             column = Gtk.TreeViewColumn(name, renderer, text=index)
             if index in (10, 11):
                 column.set_cell_data_func(renderer, self._status_cell, index)
-                header = Gtk.Label(label=name)
+                header = Gtk.Box(spacing=5)
+                header.pack_start(Gtk.Label(label=name), False, False, 0)
+                info = Gtk.Image.new_from_icon_name("dialog-information-symbolic", Gtk.IconSize.MENU)
+                info.set_pixel_size(14)
+                info.get_accessible().set_name(name + " information")
+                header.pack_start(info, False, False, 0)
                 header.set_tooltip_text(status_tooltip("Unavailable", goal=index == 11))
-                header.show()
+                header.show_all()
                 column.set_widget(header)
             column.set_resizable(True)
             column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
@@ -462,9 +467,10 @@ class TargetPicker(Gtk.Window):
             minutes, seconds = divmod(remainder, 60)
             countdown = (f"{days}d " if days else "") + f"{hours:02}:{minutes:02}:{seconds:02}"
             reset = time.strftime("%a %d %b %H:%M:%S", time.localtime(window.resets_at))
-            text = GLib.markup_escape_text(f"{label}: {window.used_percent:g}% used · resets {reset} ({countdown})")
+            text = GLib.markup_escape_text(f"{label}: {window.used_percent:g}% used")
+            suffix = GLib.markup_escape_text(f" · resets {reset} ({countdown})")
             level = "error" if window.used_percent >= 100 else "warning" if window.used_percent >= 85 else None
-            return f'<span foreground="{COLORS[level]}">{text}</span>' if level else text
+            return (f'<span foreground="{COLORS[level]}">{text}</span>' if level else text) + suffix
         lines = [window_text(w) for w in (self.quota.primary, self.quota.secondary) if w is not None]
         age = max(0, int(time.time() - self.quota_updated))
         lines.append(f"Quota refreshed {age}s ago · automatic refresh every 60s" + (" · Latest refresh failed — see messages below" if self.quota_error else ""))

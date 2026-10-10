@@ -327,3 +327,28 @@ def test_discovery_keeps_paths_and_reports_unreadable_project_names(monkeypatch,
     inventory = targets.discover_targets()
     assert inventory.targets[0].cwd == "/old/path" and inventory.targets[0].project_name == ""
     assert any("Project names unavailable" in warning for warning in inventory.warnings)
+
+
+@pytest.mark.parametrize("result", [None, [], {}, {"result": None}, {"result": []}, {"result": {}}, {"result": {"turnId": ""}}])
+def test_malformed_steer_acknowledgement_is_uncertain(monkeypatch, result):
+    from codex_charge.codex_ipc import DeliveryUncertain
+    desktop = DesktopIPC("unused")
+    monkeypatch.setattr(desktop, "request", lambda *a, **k: {"handledByClientId": "owner", "result": result})
+    with pytest.raises(DeliveryUncertain):
+        desktop.steer("chosen", "Prompt", "owner")
+
+
+def test_steering_is_pinned_to_owner_and_preserves_multiline_prompt(monkeypatch):
+    desktop = DesktopIPC("unused")
+    calls = []
+    def request(method, params, **kwargs):
+        calls.append((method, params, kwargs))
+        return {"handledByClientId": "owner", "result": {"result": {"turnId": "existing-turn"}}}
+    monkeypatch.setattr(desktop, "request", request)
+    assert desktop.steer("chosen", "First\nSecond", "owner") == {"turnId": "existing-turn"}
+    method, params, kwargs = calls[0]
+    assert method == "thread-follower-steer-turn" and kwargs == {"version": 1, "target_client": "owner"}
+    assert params["conversationId"] == "chosen"
+    assert params["input"] == [{"type": "text", "text": "First\nSecond", "text_elements": []}]
+    assert params["restoreMessage"]["id"] == params["clientUserMessageId"]
+    assert params["restoreMessage"]["context"] == {"workspaceRoots": [], "commentAttachments": []}

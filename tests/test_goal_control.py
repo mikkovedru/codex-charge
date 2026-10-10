@@ -22,6 +22,8 @@ class GoalServer:
     def __init__(self, goal=None):
         self.goal = deepcopy(GOAL if goal is None else goal)
         self.calls = []
+    def activate_owner(self):
+        self.goal["status"] = "active"
     def call(self, method, params):
         self.calls.append((method, params))
         if method == "thread/goal/set":
@@ -37,10 +39,9 @@ def controller(server):
 
 def test_native_resume_verifies_identity_accounting_and_status():
     server = GoalServer()
-    assert controller(server).resume("chosen", GOAL)
+    assert controller(server).resume("chosen", GOAL, activate=server.activate_owner)
     assert server.calls == [
         ("thread/goal/get", {"threadId": "chosen"}),
-        ("thread/goal/set", {"threadId": "chosen", "status": "active"}),
         ("thread/goal/get", {"threadId": "chosen"})]
     assert server.goal == {**GOAL, "status": "active"}
 
@@ -51,25 +52,24 @@ def test_native_resume_verifies_identity_accounting_and_status():
     {"createdAt": 5}, {"tokenBudget": 10}])
 def test_recheck_respects_user_changes(change):
     server = GoalServer({**GOAL, **change})
-    assert not controller(server).resume("chosen", GOAL)
+    assert not controller(server).resume("chosen", GOAL, activate=server.activate_owner)
     assert not any(method.endswith("/set") for method, _ in server.calls)
 
 
 @pytest.mark.parametrize("failure", ["timeout", "wrong-thread", "not-active", "accounting", "budget", "malformed"])
 def test_unconfirmed_activation_is_never_success(failure):
-    class Broken(GoalServer):
-        def call(self, method, params):
-            result = super().call(method, params)
-            if method == "thread/goal/set":
-                if failure == "timeout": raise TimeoutError("lost response")
-                if failure == "wrong-thread": result["goal"]["threadId"] = "other"
-                if failure == "not-active": result["goal"]["status"] = "paused"
-                if failure == "accounting": result["goal"]["tokensUsed"] = 0
-                if failure == "budget": result["goal"]["tokenBudget"] = 999
-                if failure == "malformed": result = {}
-            return result
+    server = GoalServer()
+    def activate():
+        server.activate_owner()
+        if failure == "timeout": raise DeliveryUncertain("lost response")
+        if failure == "wrong-thread": server.goal["threadId"] = "other"
+        if failure == "not-active": server.goal["status"] = "paused"
+        if failure == "accounting": server.goal["tokensUsed"] = 0
+        if failure == "budget": server.goal["tokenBudget"] = 999
+        if failure == "malformed": server.goal = None
     with pytest.raises(DeliveryUncertain):
-        controller(Broken()).resume("chosen", GOAL)
+        controller(server).resume("chosen", GOAL, activate=activate)
+    assert not any(method.endswith("/set") for method, _ in server.calls)
 
 
 @pytest.mark.parametrize("response", [{}, {"goal": []}, {"goal": {"threadId": "other", "status": "active"}}, {"goal": {"threadId": "chosen", "status": "future"}}])
@@ -105,27 +105,31 @@ def test_profile_is_verified_before_using_daemon(monkeypatch, tmp_path):
 
 
 def install_recovery(monkeypatch, *, status="usageLimited", task="systemError", snapshot_goal=None, send_error=None):
-    state = {"goal": None if status is None else {**GOAL, "status": status}, "resumes": 0, "sent": []}
+    state = {"goal": None if status is None else {**GOAL, "status": status}, "resumes": 0, "sent": [], "desktop_goal": snapshot_goal or status, "steered": []}
     class Goals:
         def __init__(self, *args): pass
         def __enter__(self): return self
         def __exit__(self, *args): pass
         def get(self, thread): return deepcopy(state["goal"])
-        def resume(self, thread, expected, *, allow_paused=False):
-            assert expected["status"] == "usageLimited" or allow_paused
-            state["resumes"] += 1
-            state["goal"]["status"] = "active"
+        def resume(self, thread, expected, *, activate, allow_paused=False, allow_active=False):
+            assert expected["status"] in {"usageLimited", "active"} or allow_paused
+            activate()
             return True
     class Desktop:
         def __init__(self, *args, **kwargs): pass
         def __enter__(self): return self
         def __exit__(self, *args): pass
         def owner(self, thread): assert thread == "chosen"; return "exact-owner"
-        def status_snapshot(self, thread, owner): return {"task": None if task is None else {"type": task}, "goal": snapshot_goal}
-        def continue_goal(self, thread, owner):
-            assert owner == "exact-owner" and thread == "chosen"
-            state["sent"].append(None)
-            if send_error: raise send_error
+        def status_snapshot(self, thread, owner):
+            return {"task": None if task is None else {"type": task}, "goal": state["desktop_goal"]}
+        def resume_goal(self, target, expected):
+            assert target.id == "chosen" and expected == state["goal"]
+            state["resumes"] += 1
+            state["goal"]["status"] = "active"
+            state["desktop_goal"] = "active"
+        def steer(self, thread, text, owner):
+            state["steered"].append(text)
+            return self.send(thread, text, owner)
         def send(self, thread, text, owner):
             assert owner == "exact-owner" and thread == "chosen"
             state["sent"].append(text)
@@ -322,8 +326,9 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
                 def status_snapshot(self, thread, owner):
                     current = original.call("thread/read", {"threadId": thread, "includeTurns": True})["thread"]
                     assert current["status"]["type"] == "active"
-                    return {"task": current["status"], "goal": status}
-                def continue_goal(self, *args): pytest.fail("Started a competing empty turn")
+                    return {"task": current["status"], "goal": original.call("thread/goal/get", {"threadId": thread})["goal"]["status"]}
+                def resume_goal(self, target, expected):
+                    original.call("thread/goal/set", {"threadId": target.id, "status": "active"})
                 def send(self, *args): pytest.fail("Sent an unwanted prompt")
             monkeypatch.setattr(goal_control, "NativeGoals", ExistingNative)
             monkeypatch.setattr(delivery, "DesktopIPC", ExistingOwner)
@@ -333,7 +338,7 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
             assert result.success and not result.skipped, result.detail
             assert "current turn continues" in result.detail
         else:
-            assert native.resume(thread_id, before, allow_paused=(status == "paused"))
+            assert native.resume(thread_id, before, activate=lambda: original.call("thread/goal/set", {"threadId": thread_id, "status": "active"}), allow_paused=(status == "paused"))
         after = original.call("thread/goal/get", {"threadId": thread_id})["goal"]
         assert after["status"] == "active"
         for key in ("threadId", "objective", "createdAt", "tokenBudget", "tokensUsed", "timeUsedSeconds"):
@@ -346,10 +351,18 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
             current = original.call("thread/read", {"threadId": thread_id, "includeTurns": True})["thread"]
             assert current["status"]["type"] == "active"
             assert current["turns"][-1]["id"] == active_id
-        else:
+        elif not goal_only:
             turn = original.call("turn/start", {"threadId": thread_id,
-                "input": [] if goal_only else [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
+                "input": [{"type": "text", "text": "Continue", "text_elements": []}]})["turn"]
             assert turn["status"] == "inProgress"
+        else:
+            # Goal-only never submits an empty turn. This fixture exercises the
+            # native backend state; the UI tests cover its Resume goal button.
+            current = original.call("thread/read", {"threadId": thread_id, "includeTurns": True})["thread"]
+            # The native dispatcher may immediately create its own goal turn;
+            # no user message should be manufactured by the adapter.
+            assert len(current["turns"]) <= 1
+            assert all(item.get("type") != "userMessage" for turn in current["turns"] for item in turn["items"])
         assert original.call("thread/goal/get", {"threadId": thread_id})["goal"]["status"] == "active"
         assert control.call("thread/loaded/list", {})["data"] == []
     finally:
@@ -416,11 +429,11 @@ def test_manual_action_resumes_paused_goal_preserving_accounting(monkeypatch):
 def test_native_paused_resume_requires_explicit_permission_and_unchanged_status():
     paused = {**GOAL, "status": "paused"}
     server = GoalServer(paused)
-    assert not controller(server).resume("chosen", paused)
-    assert controller(server).resume("chosen", paused, allow_paused=True)
+    assert not controller(server).resume("chosen", paused, activate=server.activate_owner)
+    assert controller(server).resume("chosen", paused, activate=server.activate_owner, allow_paused=True)
     # A fresh pause after a usage-limited snapshot is a new user decision.
     server = GoalServer(paused)
-    assert not controller(server).resume("chosen", GOAL, allow_paused=True)
+    assert not controller(server).resume("chosen", GOAL, activate=server.activate_owner, allow_paused=True)
     assert not any(method.endswith("/set") for method, _ in server.calls)
 
 
@@ -438,7 +451,7 @@ def test_manual_empty_signal_never_activates_goal(monkeypatch):
     assert not state["sent"] and not state["resumes"]
 
 
-@pytest.mark.parametrize("prompt,goal,expected", [(True, False, ["Custom"]), (False, True, [None]), (True, True, ["Custom"]), (False, False, [])])
+@pytest.mark.parametrize("prompt,goal,expected", [(True, False, ["Custom"]), (False, True, []), (True, True, ["Custom"]), (False, False, [])])
 def test_independent_signal_actions(monkeypatch, prompt, goal, expected):
     state = install_recovery(monkeypatch, status="paused", task="idle")
     target = replace(TARGET, send_prompt=prompt, send_goal=goal)
@@ -451,7 +464,7 @@ def test_independent_signal_actions(monkeypatch, prompt, goal, expected):
 def test_goal_only_accepts_empty_prompt_and_never_sends_text(monkeypatch):
     state = install_recovery(monkeypatch, status="paused", task="idle")
     result = delivery.send_signals([replace(TARGET, send_prompt=False, send_goal=True)], "", manual=True)[0]
-    assert result.success and state["sent"] == [None] and "no prompt" in result.detail
+    assert result.success and state["sent"] == [] and "no prompt" in result.detail
 
 
 def test_goal_activation_precedes_prompt(monkeypatch):
@@ -480,17 +493,17 @@ def test_missing_goal_never_uses_empty_continuation(monkeypatch, prompt):
     assert result.skipped == (not prompt)
 
 
-def test_goal_continuation_ipc_contains_no_user_message(monkeypatch):
+def test_goal_only_never_starts_or_steers_a_turn(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    original = delivery.DesktopIPC
+    class Strict(original):
+        def send(self, *args): pytest.fail("Goal-only started a user turn")
+        def steer(self, *args): pytest.fail("Goal-only steered a user turn")
+    monkeypatch.setattr(delivery, "DesktopIPC", Strict)
+    result = delivery.send_signals([replace(TARGET, send_prompt=False, send_goal=True)], "Unwanted prompt", manual=True)[0]
+    assert result.success and state["desktop_goal"] == "active" and not state["sent"]
     from codex_charge.codex_ipc import DesktopIPC
-    ipc, calls = DesktopIPC("unused"), []
-    def request(method, params, **kwargs):
-        calls.append((method, params, kwargs))
-        return {"handledByClientId": "owner", "result": {"result": {"turn": {"id": "goal-turn"}}}}
-    monkeypatch.setattr(ipc, "request", request)
-    ipc.continue_goal("chosen", "owner")
-    assert calls[0][1]["turnStart"]["request"]["input"] == []
-    assert calls[0][1]["turnStart"]["context"] == {"inheritThreadSettings": True}
-    assert calls[0][2]["target_client"] == "owner"
+    assert not hasattr(DesktopIPC, "continue_goal")
 
 
 @pytest.mark.parametrize("prompt", [False, True])
@@ -510,13 +523,44 @@ def test_manual_goal_resumes_during_active_prompt_without_competing_empty_turn(m
 
 def test_active_turn_can_advance_usage_during_native_goal_resume():
     class Growing(GoalServer):
-        def call(self, method, params):
-            if method == "thread/goal/set":
-                self.goal["tokensUsed"] += 1
-                self.goal["timeUsedSeconds"] += 1
-            return super().call(method, params)
+        def activate_owner(self):
+            super().activate_owner()
+            self.goal["tokensUsed"] += 1
+            self.goal["timeUsedSeconds"] += 1
     before = {**GOAL, "status": "paused"}
     server = Growing(before)
-    assert controller(server).resume("chosen", before, allow_paused=True)
+    assert controller(server).resume("chosen", before, activate=server.activate_owner, allow_paused=True)
     assert server.goal["tokenBudget"] == before["tokenBudget"]
     assert server.goal["tokensUsed"] == before["tokensUsed"] + 1
+
+
+def test_manual_repairs_stale_paused_desktop_goal(monkeypatch):
+    state = install_recovery(monkeypatch, status="active", snapshot_goal="paused", task="idle")
+    result = delivery.recover_target(TARGET, "", manual=True, send_prompt=False)
+    assert result.success and state["resumes"] == 1
+    assert state["desktop_goal"] == "active" and state["sent"] == []
+
+
+def test_automatic_respects_desktop_pause_even_when_database_is_active(monkeypatch):
+    state = install_recovery(monkeypatch, status="active", snapshot_goal="paused", task="idle")
+    result = delivery.recover_target(TARGET, "Continue")
+    assert result.skipped and not state["resumes"] and not state["sent"]
+
+
+def test_database_activation_without_desktop_activation_never_sends_prompt(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="idle")
+    original = delivery.DesktopIPC
+    class StaleOwner(original):
+        def resume_goal(self, target, expected):
+            state["goal"]["status"] = "active"
+    monkeypatch.setattr(delivery, "DesktopIPC", StaleOwner)
+    result = delivery.recover_target(TARGET, "Do not send", manual=True)
+    assert not result.success and not result.retryable
+    assert not state["sent"] and not state["steered"]
+
+
+def test_both_signals_steer_native_goal_turn_after_activation(monkeypatch):
+    state = install_recovery(monkeypatch, status="paused", task="active")
+    result = delivery.recover_target(TARGET, "User prompt", manual=True)
+    assert result.success and state["resumes"] == 1
+    assert state["steered"] == ["User prompt"]

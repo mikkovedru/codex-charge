@@ -148,9 +148,33 @@ class DesktopIPC:
     def send(self, thread_id, text, owner):
         return self._start_turn(thread_id, [{"type": "text", "text": text, "text_elements": []}], owner)
 
-    def continue_goal(self, thread_id, owner):
-        """Wake the existing active goal without adding a user prompt."""
-        return self._start_turn(thread_id, [], owner)
+    def resume_goal(self, target, expected):
+        from .desktop_goal import activate
+        return activate(target, expected, self)
+
+    def steer(self, thread_id, text, owner):
+        message_id = str(uuid.uuid4())
+        try:
+            response = self.request("thread-follower-steer-turn", {
+                "conversationId": thread_id,
+                "clientUserMessageId": message_id,
+                "input": [{"type": "text", "text": text, "text_elements": []}],
+                "restoreMessage": {"id": message_id, "prompt": text, "cwd": None,
+                    "context": {"workspaceRoots": [], "commentAttachments": []}},
+            }, version=1, target_client=owner)
+        except (OSError, TimeoutError, ConnectionError, ValueError, TypeError) as exc:
+            raise DeliveryUncertain("Prompt steering was not confirmed; check this chat before retrying") from exc
+        except RuntimeError as exc:
+            if any(word in str(exc).lower() for word in ("timeout", "timed out", "disconnected", "connection-closed")):
+                raise DeliveryUncertain("Prompt steering timed out or disconnected; check this chat before retrying") from exc
+            raise
+        if response.get("handledByClientId") != owner:
+            raise DeliveryUncertain("Prompt response came from a different chat owner")
+        envelope = response.get("result")
+        result = envelope.get("result") if isinstance(envelope, dict) else None
+        if not isinstance(result, dict) or not isinstance(result.get("turnId"), str) or not result["turnId"]:
+            raise DeliveryUncertain("Codex did not acknowledge the prompt in the active turn")
+        return result
 
     def _start_turn(self, thread_id, inputs, owner):
         # Request routing is pinned to the owner discovered for this exact ID.

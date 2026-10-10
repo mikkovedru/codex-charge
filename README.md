@@ -36,7 +36,7 @@ codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 | **Check quota only** | `codex-charge quota` | Shows short/long window usage |
 | **No Python (Release zip)** | Run `codex-charge-tray.exe` (Win) or `codex-charge-tray` (Linux) | Keep release binaries in the **same folder** (three on Linux, two on Windows); still need Codex CLI installed & logged in |
 
-**Pre-requisites / 前置条件：** Install [Codex CLI](https://github.com/openai/codex) and sign in with ChatGPT. Linux desktop mode also needs `sudo apt install xdotool` (X11).
+**Pre-requisites / 前置条件：** Install [Codex CLI](https://github.com/openai/codex) and sign in with ChatGPT. Linux desktop mode also needs `sudo apt install xdotool` (X11). Native Goal signals use Codex's Resume goal control and require accessibility plus a clipboard manager (included in Mint Cinnamon). Source installs also need `python3-pyatspi`.
 
 → Full guide: [English](#english) · [中文](#中文)
 
@@ -671,7 +671,7 @@ MIT — 见 [LICENSE](LICENSE)。
 The tray uses an opaque black/white C+ image. When Cinnamon's native XApp status applet is active, it uses XApp; with legacy or collapsible trays it uses an opaque XEmbed drawing surface at the actual allocated size, avoiding GTK StatusIcon caches and clipping. Image paths bypass symbolic icon recoloring; status is also shown by the tooltip and bottom color strip. Both left and right clicks open the menu. Cinnamon still controls the panel's icon size and whether its XApp status applet is visible.
 
 ```bash
-sudo apt install python3-venv python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 gir1.2-xapp-1.0 xdotool
+sudo apt install python3-venv python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 gir1.2-xapp-1.0 python3-pyatspi gir1.2-atspi-2.0 xdotool
 /usr/bin/python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -e ".[tray,dev]"
 PYTHON=.venv/bin/python bash scripts/build_linux.sh

@@ -1,4 +1,4 @@
-"""Native persisted goal control, without loading or forking desktop chats."""
+"""Read persisted goals and verify activation in the original desktop owner."""
 from __future__ import annotations
 
 import os
@@ -13,9 +13,9 @@ from .targets import AppServer
 class NativeGoals:
     """Use an existing same-user daemon sharing the selected Codex profile.
 
-    Goal get/set operate on shared persisted state even for unloaded threads.
+    Goal reads operate on shared persisted state even for unloaded threads.
     No thread/start, thread/resume, objective or budget override is ever sent.
-    Actual continuation is routed separately to the desktop's current owner.
+    Activation uses the desktop owner, including its UI and continuation loop.
     """
     def __init__(self, home):
         if not home:
@@ -55,41 +55,34 @@ class NativeGoals:
             raise ValueError("Codex returned an invalid goal identity or status")
         return goal
 
-    def resume(self, thread_id, expected, *, allow_paused=False):
+    def resume(self, thread_id, expected, *, activate, allow_paused=False, allow_active=False):
         # Recheck after desktop owner discovery, which can take time. A goal
         # edited, cleared or replaced in the meantime is left alone. Only an
         # explicit manual action may resume a goal already observed as paused.
         current = self.get(thread_id)
         allowed = {"usageLimited", "paused"} if allow_paused else {"usageLimited"}
+        if allow_active:
+            allowed.add("active")
         if (current is None or current.get("status") not in allowed
                 or current.get("status") != expected.get("status")):
             return False
         identity = ("threadId", "objective", "createdAt", "tokenBudget")
         if any(current.get(k) != expected.get(k) for k in identity):
             return False
+        # Only the desktop owner's native Resume goal control updates both its
+        # backend dispatcher and cached UI. A separate daemon's setter does not.
+        activate()
         try:
-            result = self.server.call("thread/goal/set", {"threadId": thread_id, "status": "active"})
-        except RuntimeError as exc:
-            if not any(word in str(exc).lower() for word in ("timeout", "disconnected", "closed")):
-                raise
-            raise DeliveryUncertain("Native goal resume was not confirmed; check the goal before retrying") from exc
-        except Exception as exc:
-            raise DeliveryUncertain("Native goal resume was not confirmed; check the goal before retrying") from exc
-        try:
-            acknowledged = result["goal"]
             verified = self.get(thread_id)
-            for goal in (acknowledged, verified):
-                if not isinstance(goal, dict) or goal.get("status") != "active":
-                    raise ValueError("Goal did not become active")
-                if any(goal.get(k) != current.get(k) for k in identity):
-                    raise ValueError("Goal identity or budget changed")
-                # A concurrently running turn may legitimately advance usage.
-                # Reject resets/decreases, while preserving identity and budget.
-                if any(not isinstance(goal.get(k), (int, float)) or goal[k] < current[k]
-                       for k in ("tokensUsed", "timeUsedSeconds")):
-                    raise ValueError("Goal accounting decreased during resume")
+            if not isinstance(verified, dict) or verified.get("status") not in {"active", "complete"}:
+                raise ValueError("Goal did not become active")
+            if any(verified.get(k) != current.get(k) for k in identity):
+                raise ValueError("Goal identity or budget changed")
+            if any(not isinstance(verified.get(k), (int, float)) or verified[k] < current[k]
+                   for k in ("tokensUsed", "timeUsedSeconds")):
+                raise ValueError("Goal accounting decreased during resume")
         except Exception as exc:
-            raise DeliveryUncertain("Native goal activation could not be verified; no continuation was sent") from exc
+            raise DeliveryUncertain("Native goal activation could not be verified; no prompt was sent") from exc
         return True
 
 
