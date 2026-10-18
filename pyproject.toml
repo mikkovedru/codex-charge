@@ -25,9 +25,9 @@ dev = ["pytest>=8.0", "pyinstaller>=6.0"]
 all = ["recharge-ai-task[windows,tray]"]
 
 [project.urls]
-Homepage = "https://github.com/mikkovedru/codex-charge"
-Repository = "https://github.com/mikkovedru/codex-charge"
-Issues = "https://github.com/mikkovedru/codex-charge/issues"
+Homepage = "https://github.com/mikkovedru/recharge-ai-task"
+Repository = "https://github.com/mikkovedru/recharge-ai-task"
+Issues = "https://github.com/mikkovedru/recharge-ai-task/issues"
 
 [project.scripts]
 recharge-ai-task = "recharge_ai_task.cli:main"

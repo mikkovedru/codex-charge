@@ -1,6 +1,6 @@
 # Release Notes — v1.1.0
 
-**Repository:** https://github.com/mikkovedru/codex-charge
+**Repository:** https://github.com/mikkovedru/recharge-ai-task
 
 **Tag:** `v1.1.0`  
 **License:** MIT
@@ -48,8 +48,8 @@ Each archive contains **two binaries** — place them in the same folder, then r
 
 ### Full documentation
 
-- [README — English](https://github.com/mikkovedru/codex-charge#english)
-- [README — 中文](https://github.com/mikkovedru/codex-charge#中文)
+- [README — English](https://github.com/mikkovedru/recharge-ai-task#english)
+- [README — 中文](https://github.com/mikkovedru/recharge-ai-task#中文)
 
 ---
 
@@ -94,8 +94,8 @@ recharge-ai-task-tray                 # 托盘
 
 ### 完整文档
 
-- [README — English](https://github.com/mikkovedru/codex-charge#english)
-- [README — 中文](https://github.com/mikkovedru/codex-charge#中文)
+- [README — English](https://github.com/mikkovedru/recharge-ai-task#english)
+- [README — 中文](https://github.com/mikkovedru/recharge-ai-task#中文)
 
 ---
 

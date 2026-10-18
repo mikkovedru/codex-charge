@@ -5,13 +5,19 @@ Thank you for considering a contribution to Recharge AI-task.
 ## Development setup
 
 ```bash
-git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+git clone https://github.com/mikkovedru/recharge-ai-task.git recharge-ai-task
 cd recharge-ai-task
+git remote add upstream https://github.com/Autumnpoem/codex-autocontinue.git
+git config remote.pushDefault origin
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[all,dev]"
 pytest tests/ -v
 ```
+
+`origin` is the Recharge AI-task repository. `upstream` is the original
+Autumnpoem project, used to fetch upstream changes. Work on `master` and push
+to `origin`.
 
 ## Platform notes
 

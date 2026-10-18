@@ -1,6 +1,6 @@
 # Release Notes — v1.1.1
 
-**Repository:** https://github.com/mikkovedru/codex-charge
+**Repository:** https://github.com/mikkovedru/recharge-ai-task
 
 **Tag:** `v1.1.1`  
 **License:** MIT
@@ -31,7 +31,7 @@ Each archive contains **two binaries** in one folder — run `recharge-ai-task-t
 3. Run `recharge-ai-task-tray` (or `recharge-ai-task-tray.exe` on Windows)
 4. Prerequisite: [Codex CLI](https://github.com/openai/codex) installed & signed in
 
-Full docs: [README](https://github.com/mikkovedru/codex-charge#english)
+Full docs: [README](https://github.com/mikkovedru/recharge-ai-task#english)
 
 ---
 
@@ -59,4 +59,4 @@ Full docs: [README](https://github.com/mikkovedru/codex-charge#english)
 3. 运行 `recharge-ai-task-tray`（Windows 为 `.exe`）
 4. 前提：已安装并登录 [Codex CLI](https://github.com/openai/codex)
 
-完整文档：[README 中文](https://github.com/mikkovedru/codex-charge#中文)
+完整文档：[README 中文](https://github.com/mikkovedru/recharge-ai-task#中文)

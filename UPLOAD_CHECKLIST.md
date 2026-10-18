@@ -1,6 +1,6 @@
 # 上传文件清单 / Upload checklist
 
-仓库：[Recharge AI-task source](https://github.com/mikkovedru/codex-charge)
+仓库：[Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task)
 
 以下文件**需要**提交到 GitHub；其余目录已被 `.gitignore` 排除。
 
@@ -70,15 +70,17 @@ tests/test_watch.py
 在项目根目录 `D:\recharge-ai-task` 执行：
 
 ```powershell
-git remote add origin https://github.com/mikkovedru/codex-charge.git
+git remote add origin https://github.com/mikkovedru/recharge-ai-task.git
+git remote add upstream https://github.com/Autumnpoem/codex-autocontinue.git
+git config remote.pushDefault origin
 git add .github .gitignore LICENSE MANIFEST.in pyproject.toml requirements.txt
 git add README.md README_zh.md CONTRIBUTING.md RELEASE.md OPEN_SOURCE.md UPLOAD_CHECKLIST.md
 git add docs/RELEASE_NOTES_v1.1.0.md
 git add recharge_ai_task scripts/build_windows.ps1 scripts/build_linux.sh scripts/fake_codex.py
 git add tests
 git commit -m "Initial release: recharge-ai-task v1.1.0 — auto-continue Codex after quota resets"
-git branch -M main
-git push -u origin main
+git branch -M master
+git push -u origin master
 ```
 
 ## Release 附件（不要进 git）

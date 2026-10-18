@@ -2,7 +2,7 @@
 
 Target: **Windows x86_64** + **Ubuntu x86_64** only.
 
-Repository: https://github.com/mikkovedru/codex-charge
+Repository: https://github.com/mikkovedru/recharge-ai-task
 
 ---
 
@@ -10,7 +10,7 @@ Repository: https://github.com/mikkovedru/codex-charge
 
 ```bash
 # Clone & install dev deps
-git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+git clone https://github.com/mikkovedru/recharge-ai-task.git recharge-ai-task
 cd recharge-ai-task
 
 pip install -e ".[all,dev]"
@@ -95,7 +95,7 @@ Requires Codex CLI installed and logged in on the test machine.
 
 ```bash
 git tag v1.1.0
-git push origin main
+git push origin master
 git push origin v1.1.0
 ```
 
@@ -105,7 +105,7 @@ git push origin v1.1.0
 
 ### Option A — Web UI
 
-1. Open https://github.com/mikkovedru/codex-charge/releases/new
+1. Open https://github.com/mikkovedru/recharge-ai-task/releases/new
 2. **Choose a tag:** `v1.1.0`
 3. **Release title:** `v1.1.0`
 4. **Description:** copy from [docs/RELEASE_NOTES_v1.1.0.md](docs/RELEASE_NOTES_v1.1.0.md)

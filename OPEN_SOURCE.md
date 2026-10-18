@@ -64,7 +64,7 @@ Desktop mode uses the same ChatGPT account / `codex app-server` auth as CLI. It 
 
 ## Before publishing
 
-1. Repo URL is set to `https://github.com/mikkovedru/codex-charge`.
+1. Repo URL is set to `https://github.com/mikkovedru/recharge-ai-task`.
 2. Run `pytest tests/ -v` on Windows and Ubuntu.
 3. Build x86_64 artifacts per `RELEASE.md`.
 4. Tag e.g. `v1.1.0` and attach platform zips.

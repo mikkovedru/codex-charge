@@ -171,7 +171,7 @@ matching has been replaced by explicit recipients.
 
 | Method | Best for | How |
 |--------|----------|-----|
-| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/mikkovedru/codex-charge/releases) zip, run `recharge-ai-task-tray` |
+| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/mikkovedru/recharge-ai-task/releases) zip, run `recharge-ai-task-tray` |
 | **Pre-built binary** | Users without Python | Keep release executables together; Linux also includes `recharge-ai-task-gui` |
 | **pip install** | Developers | `pip install "recharge-ai-task[all]"` |
 
@@ -297,7 +297,7 @@ recharge-ai-task/
 ### Development
 
 ```bash
-git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+git clone https://github.com/mikkovedru/recharge-ai-task.git recharge-ai-task
 cd recharge-ai-task
 pip install -e ".[all,dev]"
 pytest tests/ -v
@@ -336,13 +336,13 @@ Log files: `~/.recharge-ai-task/tray.log`, `~/.recharge-ai-task/wrapper.log`
 
 | Field | Value |
 |-------|-------|
-| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/codex-charge) |
+| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task) |
 | **CLI / package name** | `recharge-ai-task` (pip install name) |
 | **Description** | Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64, MIT |
 | **License** | MIT |
 | **Topics** | `codex`, `openai`, `chatgpt`, `automation`, `quota`, `rate-limit`, `cli`, `python`, `windows`, `linux`, `tray-app` |
 
-Repository: [Recharge AI-task source](https://github.com/mikkovedru/codex-charge)
+Repository: [Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task)
 
 ### License
 
@@ -481,7 +481,7 @@ recharge-ai-task-tray
 
 | 方式 | 适合谁 | 操作 |
 |------|--------|------|
-| **托盘小应用** | 不想碰命令行 | 下载 [GitHub Release](https://github.com/mikkovedru/codex-charge/releases) 压缩包，运行 `recharge-ai-task-tray` |
+| **托盘小应用** | 不想碰命令行 | 下载 [GitHub Release](https://github.com/mikkovedru/recharge-ai-task/releases) 压缩包，运行 `recharge-ai-task-tray` |
 | **打包 exe** | 没有 Python 的用户 | 同一文件夹放两个可执行文件 |
 | **pip 安装** | 开发者 | `pip install "recharge-ai-task[all]"` + `configure` |
 
@@ -607,7 +607,7 @@ recharge-ai-task/
 ### 开发与测试
 
 ```bash
-git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+git clone https://github.com/mikkovedru/recharge-ai-task.git recharge-ai-task
 cd recharge-ai-task
 pip install -e ".[all,dev]"
 pytest tests/ -v
@@ -646,14 +646,14 @@ CLI 模式触限时的 stderr：
 
 | 字段 | 值 |
 |------|-----|
-| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/codex-charge) |
+| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task) |
 | **CLI / 包名** | `recharge-ai-task`（pip 安装名） |
 | **Description** | Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64, MIT |
 | **Description（中文参考）** | Codex 5h/7d 限额恢复后自动继续（CLI + ChatGPT 桌面版）· 双语 · Win/Ubuntu x86_64 · MIT |
 | **License** | MIT |
 | **Topics** | `codex`, `openai`, `chatgpt`, `automation`, `quota`, `rate-limit`, `cli`, `python`, `windows`, `linux`, `tray-app` |
 
-仓库地址：[Recharge AI-task source](https://github.com/mikkovedru/codex-charge)
+仓库地址：[Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task)
 
 ### 许可
 
@@ -681,9 +681,11 @@ with the new variables taking precedence. Startup registration uses
 `recharge-ai-task-tray.desktop` on Linux or `recharge-ai-task-tray.bat` on Windows;
 enabling or disabling startup also retires its previous registration.
 
-Project links use this repository's existing GitHub address. Its server-side
-repository name has not changed. The original upstream is
-[Autumnpoem's project](https://github.com/Autumnpoem/codex-autocontinue).
+The GitHub repository is
+[Recharge AI-task](https://github.com/mikkovedru/recharge-ai-task).
+Use `origin` for this repository and `upstream` for
+[Autumnpoem's original project](https://github.com/Autumnpoem/codex-autocontinue).
+Development and releases use the `master` branch.
 
 ## Linux Mint Cinnamon
 
