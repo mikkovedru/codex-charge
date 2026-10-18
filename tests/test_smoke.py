@@ -1,4 +1,4 @@
-"""Smoke tests for codex-charge (no live quota wait)."""
+"""Smoke tests for recharge-ai-task (no live quota wait)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import pytest
 import sys
 import time
 
-from codex_charge.parser import LimitWatcher, resolve_reset_at
-from codex_charge.quota import discover_codex, fetch_quota, format_quota
+from recharge_ai_task.parser import LimitWatcher, resolve_reset_at
+from recharge_ai_task.quota import discover_codex, fetch_quota, format_quota
 
 
 def test_parser_detects_limit() -> None:
@@ -24,7 +24,7 @@ def test_parser_detects_limit() -> None:
     print(f"parser OK: raw={raw!r}, source={source}")
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
 def test_quota_api() -> None:
     codex = discover_codex()
     quota = fetch_quota(codex)
@@ -34,9 +34,9 @@ def test_quota_api() -> None:
     print(text)
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_LIVE_TESTS") != "1", reason="Requires a signed-in Codex CLI")
 def test_spawn_goal_mode(timeout: float = 20) -> None:
-    result = subprocess.run([sys.executable, "-m", "codex_charge.cli", "run", "--goal", "--", "--version"], capture_output=True, text=True, timeout=timeout)
+    result = subprocess.run([sys.executable, "-m", "recharge_ai_task.cli", "run", "--goal", "--", "--version"], capture_output=True, text=True, timeout=timeout)
     assert result.returncode == 0, result.stderr
     assert "codex" in result.stdout.lower()
 

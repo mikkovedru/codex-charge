@@ -1,11 +1,11 @@
 """Per-recipient action persistence, migration and quota-reset delivery."""
 from dataclasses import replace
 import pytest
-from codex_charge.config import AppConfig
-from codex_charge.targets import Target
-from codex_charge import watch
-from codex_charge.target_delivery import DeliveryResult
-from codex_charge.quota import Quota, RateWindow
+from recharge_ai_task.config import AppConfig
+from recharge_ai_task.targets import Target
+from recharge_ai_task import watch
+from recharge_ai_task.target_delivery import DeliveryResult
+from recharge_ai_task.quota import Quota, RateWindow
 
 
 @pytest.mark.parametrize('legacy_goal', [False, True])
@@ -67,7 +67,7 @@ def test_startup_only_checks_recipients_with_goal_enabled(monkeypatch):
 
 
 def test_cli_reselection_preserves_existing_signal_choices(monkeypatch, capsys):
-    from codex_charge import cli, targets
+    from recharge_ai_task import cli, targets
     saved = Target('thread', 'chosen', 'Old title', send_prompt=False, send_goal=True)
     AppConfig(desktop_targets=[saved.to_dict()]).save()
     monkeypatch.setattr(targets, 'discover_targets', lambda: targets.Inventory([replace(saved, title='New title')]))

@@ -12,9 +12,9 @@ import pytest
 if not sys.platform.startswith("linux"):
     pytest.skip("Linux native desktop helper", allow_module_level=True)
 
-from codex_charge import desktop_goal as control
-from codex_charge.codex_ipc import DeliveryUncertain
-from codex_charge.targets import Target
+from recharge_ai_task import desktop_goal as control
+from recharge_ai_task.codex_ipc import DeliveryUncertain
+from recharge_ai_task.targets import Target
 
 TARGET = Target("thread", "chosen", "A chat", instance="/fixture")
 GOAL = {"threadId": "chosen", "status": "paused"}
@@ -42,7 +42,7 @@ def helper(monkeypatch, *, response=None, returncode=0, timeout=False):
 def test_helper_uses_socket_peer_pid_and_contains_no_prompt(monkeypatch):
     desktop, calls = helper(monkeypatch)
     control.activate(TARGET, GOAL, desktop)
-    assert calls[0][0][-2:] == ["-m", "codex_charge.desktop_goal_ui"]
+    assert calls[0][0][-2:] == ["-m", "recharge_ai_task.desktop_goal_ui"]
     assert calls[1] == {"target": TARGET.to_dict(), "goal": GOAL, "pid": 123}
 
 

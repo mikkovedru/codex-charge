@@ -1,4 +1,4 @@
-# Build standalone Windows x86_64 executables for codex-charge.
+# Build standalone Windows x86_64 executables for recharge-ai-task.
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -9,31 +9,31 @@ if ([Environment]::Is64BitOperatingSystem -ne $true) {
     Write-Error "Release builds target x86_64 Windows only."
 }
 
-$Locales = Join-Path $Root "codex_charge\locales"
+$Locales = Join-Path $Root "recharge_ai_task\locales"
 $CommonArgs = @(
     "--noconfirm", "--onefile",
     "--paths", $Root,
-    "--collect-submodules", "codex_charge",
-    "--collect-data", "codex_charge",
-    "--add-data", "$Locales;codex_charge\locales"
+    "--collect-submodules", "recharge_ai_task",
+    "--collect-data", "recharge_ai_task",
+    "--add-data", "$Locales;recharge_ai_task\locales"
 )
 
-Write-Host "Building codex-charge CLI..."
+Write-Host "Building recharge-ai-task CLI..."
 pyinstaller @CommonArgs --console `
-  --name codex-charge `
+  --name recharge-ai-task `
   --collect-all winpty `
   scripts/entry_cli.py
 
-Write-Host "Building codex-charge tray app..."
+Write-Host "Building recharge-ai-task tray app..."
 pyinstaller @CommonArgs --windowed `
-  --name codex-charge-tray `
+  --name recharge-ai-task-tray `
   --collect-all winpty `
   --collect-all pystray `
   scripts/entry_tray.py
 
 Write-Host ""
 Write-Host "Output:"
-Write-Host "  dist\codex-charge.exe"
-Write-Host "  dist\codex-charge-tray.exe"
+Write-Host "  dist\recharge-ai-task.exe"
+Write-Host "  dist\recharge-ai-task-tray.exe"
 Write-Host ""
 Write-Host "Copy both EXEs to the same folder before using the tray app."

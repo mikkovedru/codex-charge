@@ -1,6 +1,6 @@
-"""PyInstaller entry for codex-charge tray (absolute imports only)."""
+"""PyInstaller entry for recharge-ai-task tray (absolute imports only)."""
 
-from codex_charge.tray import main
+from recharge_ai_task.tray import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

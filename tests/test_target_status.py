@@ -7,8 +7,8 @@ import threading
 
 import pytest
 
-from codex_charge import targets
-from codex_charge.codex_ipc import DesktopIPC
+from recharge_ai_task import targets
+from recharge_ai_task.codex_ipc import DesktopIPC
 
 
 @pytest.mark.parametrize("state,label", [
@@ -56,7 +56,7 @@ def test_goal_database_absent_and_corrupt_are_not_no_goal(tmp_path):
 @pytest.mark.parametrize("snapshot_error", [False, True])
 @pytest.mark.parametrize("cached_goal", [False, True])
 def test_live_status_overrides_unloaded_metadata(monkeypatch, tmp_path, snapshot_error, cached_goal):
-    from codex_charge import codex_ipc
+    from recharge_ai_task import codex_ipc
     (tmp_path / "ipc").mkdir()
     (tmp_path / "ipc/ipc.sock").touch()
     monkeypatch.setattr(targets, "discover_homes", lambda: {tmp_path})

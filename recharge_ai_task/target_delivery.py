@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from .codex_ipc import DesktopIPC, DeliveryUncertain
 from .targets import Target, discover_windows
 
-_log = logging.getLogger("codex-charge.delivery")
+_log = logging.getLogger("recharge-ai-task.delivery")
 
 
 @dataclass(frozen=True)

@@ -50,14 +50,14 @@ routing currently requires the Linux desktop's Unix socket.
 
 ## User flow
 
-Open **Open Codex Charge…** in the tray, or run `codex-charge gui`, `codex-charge-gui`, or `codex-charge targets --gui`.
-The root `codex-charge --help` lists both GUI command forms. A Linux release
+Open **Open Recharge AI-task…** in the tray, or run `recharge-ai-task gui`, `recharge-ai-task-gui`, or `recharge-ai-task targets --gui`.
+The root `recharge-ai-task --help` lists both GUI command forms. A Linux release
 contains the CLI, tray, and dedicated GUI launcher; keep them together.
 All GUI launch commands start the tray too. Further launches reuse the same tray
 and present its existing window, preserving the current view. Closing the window
 keeps the tray and watch running. Double-click the icon to hide the visible
 dashboard to the tray, or restore it with the current view intact. GUI launch
-commands and **Open Codex Charge…** always show the dashboard. Right-click for
+commands and **Open Recharge AI-task…** always show the dashboard. Right-click for
 the tray menu, including **Exit** to quit.
 Search by title, ID, project, PID or deep link. Enable **Prompt**, **Goal**, or both
 for each recipient and edit the multiline prompt message. Newlines are preserved
@@ -160,19 +160,19 @@ An empty selection or blank Prompt draft suspends the watch until settings becom
 valid. Stop cancels pending restarts; saving while Off does not start a watch.
 Configuration is saved atomically.
 
-On Linux, the picker and tray communicate through a private Codex Charge control
+On Linux, the picker and tray communicate through a private Recharge AI-task control
 socket in the configuration directory. Only same-user clients are accepted,
 the socket is mode `0600`, and a second tray cannot replace an active socket.
 The dashboard controls a watch started by the tray; a separately launched
-`codex-charge watch` process is managed in its own terminal.
+`recharge-ai-task watch` process is managed in its own terminal.
 
 CLI examples:
 
 ```bash
-codex-charge targets --json
-codex-charge targets --select THREAD_ID_1 --select THREAD_ID_2
-codex-charge targets --clear
-codex-charge watch
+recharge-ai-task targets --json
+recharge-ai-task targets --select THREAD_ID_1 --select THREAD_ID_2
+recharge-ai-task targets --clear
+recharge-ai-task watch
 ```
 
 Use the full `key` from JSON output when an ID is ambiguous across profiles.

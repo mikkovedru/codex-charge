@@ -12,31 +12,31 @@ if [[ "$arch" != "x86_64" ]]; then
   exit 1
 fi
 
-LOCALES="$ROOT/codex_charge/locales"
+LOCALES="$ROOT/recharge_ai_task/locales"
 COMMON=(
   --noconfirm --onefile
   --paths "$ROOT"
-  --collect-data codex_charge
-  --add-data "$LOCALES:codex_charge/locales"
+  --collect-data recharge_ai_task
+  --add-data "$LOCALES:recharge_ai_task/locales"
 )
 
-echo "Building codex-charge CLI..."
+echo "Building recharge-ai-task CLI..."
 "$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
-  --name codex-charge \
+  --name recharge-ai-task \
   scripts/entry_cli.py
 
-echo "Building codex-charge GUI launcher..."
+echo "Building recharge-ai-task GUI launcher..."
 "$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
-  --name codex-charge-gui \
+  --name recharge-ai-task-gui \
   scripts/entry_gui.py
 
-echo "Building codex-charge tray..."
+echo "Building recharge-ai-task tray..."
 "$PYTHON" -m PyInstaller --noconfirm scripts/tray_linux.spec
 
 echo ""
 echo "Output:"
-echo "  dist/codex-charge"
-echo "  dist/codex-charge-tray"
-echo "  dist/codex-charge-gui"
+echo "  dist/recharge-ai-task"
+echo "  dist/recharge-ai-task-tray"
+echo "  dist/recharge-ai-task-gui"
 echo ""
 echo "Linux desktop mode also requires: sudo apt install xdotool"

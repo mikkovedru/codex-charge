@@ -7,10 +7,10 @@ import sys
 
 import pytest
 
-from codex_charge import goal_control, target_delivery as delivery
-from codex_charge.codex_ipc import DeliveryUncertain
-from codex_charge.goal_control import NativeGoals
-from codex_charge.targets import Target
+from recharge_ai_task import goal_control, target_delivery as delivery
+from recharge_ai_task.codex_ipc import DeliveryUncertain
+from recharge_ai_task.goal_control import NativeGoals
+from recharge_ai_task.targets import Target
 
 GOAL = {"threadId": "chosen", "objective": "Original objective", "createdAt": 1,
         "updatedAt": 2, "status": "usageLimited", "tokenBudget": 200,
@@ -221,7 +221,7 @@ def test_post_send_goal_verification_failure_does_not_retry(monkeypatch):
     assert state["sent"] == ["Continue"]
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_LIVE_TESTS") != "1", reason="Requires the installed native Codex backend")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_LIVE_TESTS") != "1", reason="Requires the installed native Codex backend")
 @pytest.mark.parametrize("status", ["usageLimited", "paused"])
 @pytest.mark.parametrize("goal_only,active_turn", [(False, False), (True, False), (True, True)])
 def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path, monkeypatch, status, goal_only, active_turn):
@@ -269,7 +269,7 @@ def test_native_api_reactivates_shared_goal_without_loading_second_copy(tmp_path
             self.reader = threading.Thread(target=read, daemon=True)
             self.reader.start()
         def initialize(self):
-            self.call("initialize", {"clientInfo": {"name": "charge-native-fixture", "version": "1"}})
+            self.call("initialize", {"clientInfo": {"name": "recharge-native-fixture", "version": "1"}})
             self.process.stdin.write(json.dumps({"method": "initialized"}) + "\n")
             self.process.stdin.flush()
         def call(self, method, params):
@@ -502,7 +502,7 @@ def test_goal_only_never_starts_or_steers_a_turn(monkeypatch):
     monkeypatch.setattr(delivery, "DesktopIPC", Strict)
     result = delivery.send_signals([replace(TARGET, send_prompt=False, send_goal=True)], "Unwanted prompt", manual=True)[0]
     assert result.success and state["desktop_goal"] == "active" and not state["sent"]
-    from codex_charge.codex_ipc import DesktopIPC
+    from recharge_ai_task.codex_ipc import DesktopIPC
     assert not hasattr(DesktopIPC, "continue_goal")
 
 

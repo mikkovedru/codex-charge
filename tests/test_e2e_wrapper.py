@@ -8,8 +8,8 @@ import threading
 import time
 from pathlib import Path
 
-from codex_charge.pty_backend import StopEvent
-from codex_charge.wrapper import WrapperConfig, run_wrapper
+from recharge_ai_task.pty_backend import StopEvent
+from recharge_ai_task.wrapper import WrapperConfig, run_wrapper
 
 ROOT = Path(__file__).resolve().parents[1]
 LIMIT_LINE = "You've hit your usage limit. Try again in 1 second.\r\n"
@@ -46,20 +46,20 @@ class FakePty:
 def test_goal_mode_auto_continue(monkeypatch) -> None:
     fake = FakePty()
     monkeypatch.setattr(
-        "codex_charge.wrapper.spawn_pty",
+        "recharge_ai_task.wrapper.spawn_pty",
         lambda argv, dims: fake,
     )
     monkeypatch.setattr(
-        "codex_charge.wrapper.sleep_with_proxy",
+        "recharge_ai_task.wrapper.sleep_with_proxy",
         lambda pty, stop, wake_at: True,
     )
     monkeypatch.setattr(
-        "codex_charge.wrapper.forward_stdin",
+        "recharge_ai_task.wrapper.forward_stdin",
         lambda pty, stop: None,
     )
 
     monkeypatch.setattr(
-        "codex_charge.wrapper.discover_codex",
+        "recharge_ai_task.wrapper.discover_codex",
         lambda explicit=None: explicit or "codex",
     )
     config = WrapperConfig(
@@ -75,11 +75,11 @@ def test_goal_mode_auto_continue(monkeypatch) -> None:
 
 def test_normal_mode_auto_continue(monkeypatch) -> None:
     fake = FakePty()
-    monkeypatch.setattr("codex_charge.wrapper.spawn_pty", lambda argv, dims: fake)
-    monkeypatch.setattr("codex_charge.wrapper.sleep_with_proxy", lambda *a: True)
-    monkeypatch.setattr("codex_charge.wrapper.forward_stdin", lambda *a: None)
+    monkeypatch.setattr("recharge_ai_task.wrapper.spawn_pty", lambda argv, dims: fake)
+    monkeypatch.setattr("recharge_ai_task.wrapper.sleep_with_proxy", lambda *a: True)
+    monkeypatch.setattr("recharge_ai_task.wrapper.forward_stdin", lambda *a: None)
 
-    monkeypatch.setattr("codex_charge.wrapper.discover_codex", lambda explicit=None: explicit or "codex")
+    monkeypatch.setattr("recharge_ai_task.wrapper.discover_codex", lambda explicit=None: explicit or "codex")
     config = WrapperConfig(
         codex_path="codex",
         goal_mode=False,
@@ -95,7 +95,7 @@ def test_normal_mode_auto_continue(monkeypatch) -> None:
 def test_real_codex_spawn_smoke() -> None:
     """Spawn real codex via wrapper; exit quickly if codex is installed."""
     try:
-        from codex_charge.quota import discover_codex
+        from recharge_ai_task.quota import discover_codex
 
         discover_codex()
     except FileNotFoundError:
@@ -105,7 +105,7 @@ def test_real_codex_spawn_smoke() -> None:
         [
             sys.executable,
             "-m",
-            "codex_charge.cli",
+            "recharge_ai_task.cli",
             "run",
             "--goal",
             "--grace",
@@ -125,4 +125,4 @@ def test_real_codex_spawn_smoke() -> None:
         proc.kill()
         stdout, stderr = proc.communicate(timeout=5)
     combined = f"{stdout}\n{stderr}"
-    assert "running" in combined.lower() or "codex-charge" in combined.lower()
+    assert "running" in combined.lower() or "recharge-ai-task" in combined.lower()

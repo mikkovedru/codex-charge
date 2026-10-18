@@ -6,7 +6,7 @@ gi.require_version("XApp", "1.0")
 from gi.repository import GLib, Gtk, XApp
 from pystray._util.gtk import GtkIcon, mainloop
 
-_log = logging.getLogger("codex-charge.tray")
+_log = logging.getLogger("recharge-ai-task.tray")
 
 
 class XAppIcon(GtkIcon):

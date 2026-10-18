@@ -1,12 +1,12 @@
 # Contributing
 
-Thank you for considering a contribution to codex-charge.
+Thank you for considering a contribution to Recharge AI-task.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/Autumnpoem/codex-autocontinue.git
-cd codex-charge
+git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+cd recharge-ai-task
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[all,dev]"
@@ -17,8 +17,8 @@ pytest tests/ -v
 
 | OS | Extra deps |
 |----|------------|
-| Windows | `pip install "codex-charge[windows]"` (pywinpty) |
-| Linux tray | `pip install "codex-charge[tray]"` |
+| Windows | `pip install "recharge-ai-task[windows]"` (pywinpty) |
+| Linux tray | `pip install "recharge-ai-task[tray]"` |
 | Linux desktop mode | `sudo apt install xdotool` (X11 only) |
 
 ## Pull requests

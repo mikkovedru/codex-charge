@@ -1,4 +1,4 @@
-"""Make codex-charge runnable as python -m codex_charge."""
+"""Make recharge-ai-task runnable as python -m recharge_ai_task."""
 
 from .cli import main
 

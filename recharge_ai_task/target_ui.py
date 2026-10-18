@@ -25,7 +25,7 @@ from .status_log import StatusLog
 class TargetPicker(Gtk.Window):
     def __init__(self, *, quit_on_close=True):
         self.quit_on_close = quit_on_close
-        super().__init__(title="Codex Charge")
+        super().__init__(title="Recharge AI-task")
         self.set_default_size(1120, 740)
         self.config = AppConfig.load()
         self.selected = {t.key: t for t in self.config.targets()}
@@ -76,7 +76,7 @@ class TargetPicker(Gtk.Window):
         dashboard.pack_start(watch_row, False, False, 0)
         startup_row = Gtk.Box(spacing=8)
         self.startup_toggle = Gtk.CheckButton()
-        self.startup_toggle.set_tooltip_text("Run Codex Charge in the tray when you log in")
+        self.startup_toggle.set_tooltip_text("Run Recharge AI-task in the tray when you log in")
         self.startup_toggle.connect("toggled", self.toggle_startup)
         startup_row.pack_start(self.startup_toggle, False, False, 0)
         startup_row.pack_start(self.startup_label, True, True, 0)
@@ -412,7 +412,7 @@ class TargetPicker(Gtk.Window):
             except OSError:
                 if command != "start-watch":
                     raise
-                args = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "codex_charge.tray"]
+                args = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "recharge_ai_task.tray"]
                 subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
                 deadline = time.monotonic() + 10
                 while True:

@@ -5,7 +5,7 @@ This document describes what ships in the public **MIT** repository and release 
 ## Repository (source)
 
 ```
-codex-charge/
+recharge-ai-task/
 ├── LICENSE                 # MIT
 ├── README.md               # Bilingual docs (EN + 中文, anchor switch)
 ├── README_zh.md            # Redirect to README.md#中文
@@ -13,7 +13,7 @@ codex-charge/
 ├── CONTRIBUTING.md
 ├── MANIFEST.in
 ├── pyproject.toml          # pip package metadata
-├── codex_charge/           # Main library
+├── recharge_ai_task/           # Main library
 │   ├── cli.py              # CLI entry
 │   ├── configure.py        # First-run: language + mode
 │   ├── wrapper.py          # CLI mode (PTY)
@@ -25,7 +25,7 @@ codex-charge/
 │   ├── tray.py             # System tray (Win + Linux)
 │   ├── pty_win.py          # Windows PTY (pywinpty)
 │   ├── pty_unix.py         # Linux PTY
-│   └── config.py           # ~/.codex-charge/config.json
+│   └── config.py           # ~/.recharge-ai-task/config.json
 ├── scripts/
 │   ├── build_windows.ps1   # x86_64 Windows exe
 │   ├── build_linux.sh      # x86_64 Linux binaries
@@ -40,16 +40,16 @@ codex-charge/
 
 | Channel | Audience | Command |
 |---------|----------|---------|
-| **PyPI** | Developers | `pip install "codex-charge[all]"` then `codex-charge configure` |
-| **GitHub Release** | End users without Python | Download platform zip, run `codex-charge-tray` |
+| **PyPI** | Developers | `pip install "recharge-ai-task[all]"` then `recharge-ai-task configure` |
+| **GitHub Release** | End users without Python | Download platform zip, run `recharge-ai-task-tray` |
 | **From source** | Contributors | `pip install -e ".[all,dev]"` |
 
 ## Release binaries (x86_64 only)
 
 | Platform | Files |
 |----------|-------|
-| Windows | `codex-charge.exe`, `codex-charge-tray.exe` |
-| Ubuntu | `codex-charge`, `codex-charge-tray` |
+| Windows | `recharge-ai-task.exe`, `recharge-ai-task-tray.exe` |
+| Ubuntu | `recharge-ai-task`, `recharge-ai-task-tray` |
 
 Both binaries in a pair must live in the **same folder**.
 
@@ -64,7 +64,7 @@ Desktop mode uses the same ChatGPT account / `codex app-server` auth as CLI. It 
 
 ## Before publishing
 
-1. Repo URL is set to `https://github.com/Autumnpoem/codex-autocontinue`.
+1. Repo URL is set to `https://github.com/mikkovedru/codex-charge`.
 2. Run `pytest tests/ -v` on Windows and Ubuntu.
 3. Build x86_64 artifacts per `RELEASE.md`.
 4. Tag e.g. `v1.1.0` and attach platform zips.

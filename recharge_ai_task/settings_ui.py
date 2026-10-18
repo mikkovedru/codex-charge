@@ -10,7 +10,7 @@ from .config import AppConfig
 
 class SettingsDialog(Gtk.Dialog):
     def __init__(self, parent):
-        super().__init__(title="Codex Charge — Settings", transient_for=parent, modal=True)
+        super().__init__(title="Recharge AI-task — Settings", transient_for=parent, modal=True)
         self.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Save settings", Gtk.ResponseType.OK)
         self.set_default_size(540, 390)
         config = AppConfig.load()

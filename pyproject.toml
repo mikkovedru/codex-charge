@@ -3,13 +3,13 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codex-charge"
+name = "recharge-ai-task"
 version = "1.1.1"
 description = "Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "codex-charge contributors" }]
+authors = [{ name = "Recharge AI-task contributors" }]
 keywords = ["codex", "openai", "quota", "rate-limit", "automation"]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -22,25 +22,25 @@ dependencies = ["websocket-client>=1.8", "python-xlib>=0.33; sys_platform == 'li
 windows = ["pywinpty>=2.0.15"]
 tray = ["pystray>=0.19.5", "Pillow>=10.0.0"]
 dev = ["pytest>=8.0", "pyinstaller>=6.0"]
-all = ["codex-charge[windows,tray]"]
+all = ["recharge-ai-task[windows,tray]"]
 
 [project.urls]
-Homepage = "https://github.com/Autumnpoem/codex-autocontinue"
-Repository = "https://github.com/Autumnpoem/codex-autocontinue"
-Issues = "https://github.com/Autumnpoem/codex-autocontinue/issues"
+Homepage = "https://github.com/mikkovedru/codex-charge"
+Repository = "https://github.com/mikkovedru/codex-charge"
+Issues = "https://github.com/mikkovedru/codex-charge/issues"
 
 [project.scripts]
-codex-charge = "codex_charge.cli:main"
-codex-charge-gui = "codex_charge.gui:main"
-codex-charge-tray = "codex_charge.tray:main"
-codex-charge-configure = "codex_charge.configure:main"
+recharge-ai-task = "recharge_ai_task.cli:main"
+recharge-ai-task-gui = "recharge_ai_task.gui:main"
+recharge-ai-task-tray = "recharge_ai_task.tray:main"
+recharge-ai-task-configure = "recharge_ai_task.configure:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["codex_charge*"]
+include = ["recharge_ai_task*"]
 
 [tool.setuptools.package-data]
-codex_charge = ["locales/*.json"]
+recharge_ai_task = ["locales/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

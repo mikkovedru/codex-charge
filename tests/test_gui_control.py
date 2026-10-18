@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from codex_charge import autostart, config, quota, tray_control
-from codex_charge.config import AppConfig
-from codex_charge.targets import Target
+from recharge_ai_task import autostart, config, quota, tray_control
+from recharge_ai_task.config import AppConfig
+from recharge_ai_task.targets import Target
 
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux tray control and startup integration")
 
@@ -84,7 +84,7 @@ def test_quiet_quota_server_times_out_and_is_killed(tmp_path):
 
 
 def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
     monkeypatch.setattr(tray, "is_autostart_enabled", lambda: False)
     def watch(_cfg, stop):
@@ -120,7 +120,7 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
 
 
 def test_watch_controller_rejects_empty_selection(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     app = tray.TrayApp()
     with pytest.raises(RuntimeError, match="at least one target"):
         app.control("start-watch")
@@ -129,7 +129,7 @@ def test_watch_controller_rejects_empty_selection(monkeypatch):
 
 def test_simultaneous_gui_and_menu_start_create_one_watch(monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
-    from codex_charge import tray
+    from recharge_ai_task import tray
     calls = []
     def watch(_cfg, stop):
         calls.append(1)
@@ -152,9 +152,9 @@ def test_simultaneous_gui_and_menu_start_create_one_watch(monkeypatch):
 
 @pytest.mark.parametrize("args,command", [(["--targets"], "open-gui"), (["--settings"], "open-settings"), ([], "status")])
 def test_tray_launch_reuses_existing_application(monkeypatch, args, command):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     calls = []
-    monkeypatch.setattr(tray.sys, "argv", ["codex-charge-tray", *args])
+    monkeypatch.setattr(tray.sys, "argv", ["recharge-ai-task-tray", *args])
     monkeypatch.setattr(tray_control, "request", lambda action: calls.append(action) or {"pid": 123})
     monkeypatch.setattr(tray.TrayApp, "run", lambda *a, **kw: pytest.fail("Created a duplicate tray"))
     assert tray.main() == 0
@@ -164,9 +164,9 @@ def test_tray_launch_reuses_existing_application(monkeypatch, args, command):
 @pytest.mark.parametrize("args,options", [(["--targets"], {"show_gui": True, "settings": False}),
                                         (["--settings"], {"show_gui": True, "settings": True})])
 def test_first_gui_launch_runs_full_tray(monkeypatch, args, options):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     calls = []
-    monkeypatch.setattr(tray.sys, "argv", ["codex-charge-tray", *args])
+    monkeypatch.setattr(tray.sys, "argv", ["recharge-ai-task-tray", *args])
     def missing(_): raise FileNotFoundError("no tray")
     monkeypatch.setattr(tray_control, "request", missing)
     monkeypatch.setattr(tray.TrayApp, "run", lambda self, **kw: calls.append(kw))
@@ -175,7 +175,7 @@ def test_first_gui_launch_runs_full_tray(monkeypatch, args, options):
 
 
 def test_gui_control_queues_the_right_window_action(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     app, calls = tray.TrayApp(), []
     monkeypatch.setattr(app, "open_targets", lambda **kw: calls.append(kw))
     assert app.control("open-gui")["gui_control"]
@@ -185,14 +185,14 @@ def test_gui_control_queues_the_right_window_action(monkeypatch):
 
 
 def test_icon_default_toggles_but_open_menu_always_opens(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     app, calls = tray.TrayApp(), []
     monkeypatch.setattr(app, "open_targets", lambda *a, **kw: calls.append(kw))
     menu = app._build_menu()
     menu(None)  # Icon activation invokes the hidden default action.
     assert calls == [{"toggle": True}]
     calls.clear()
-    next(item for item in menu if item.text == "Open Codex Charge…")(None)
+    next(item for item in menu if item.text == "Open Recharge AI-task…")(None)
     assert calls == [{}]
 
 
@@ -204,7 +204,7 @@ def wait_until(check, timeout=3):
 
 
 def test_automatic_restart_coalesces_edits_and_retains_delivery_state(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     calls, active = [], []
     monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
     def watch(cfg, stop):
@@ -241,7 +241,7 @@ def test_automatic_restart_coalesces_edits_and_retains_delivery_state(monkeypatc
 
 
 def test_stop_cancels_restart_while_previous_worker_is_finishing(monkeypatch):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     import threading
     finishing, release = threading.Event(), threading.Event()
     calls = []
@@ -273,7 +273,7 @@ def test_stop_cancels_restart_while_previous_worker_is_finishing(monkeypatch):
 
 @pytest.mark.parametrize("empty_selection", [False, True])
 def test_invalid_saved_draft_suspends_watch_until_valid(monkeypatch, empty_selection):
-    from codex_charge import tray
+    from recharge_ai_task import tray
     calls = []
     def watch(cfg, stop):
         calls.append(cfg)

@@ -25,7 +25,7 @@ env/
 Thumbs.db
 
 # Local user config (never commit)
-.codex-charge/
+.recharge-ai-task/
 
 # Build artifacts
 *.exe

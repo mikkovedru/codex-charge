@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from codex_charge.parser import LimitWatcher, resolve_reset_at
+from recharge_ai_task.parser import LimitWatcher, resolve_reset_at
 
 
 def test_limit_in_message() -> None:

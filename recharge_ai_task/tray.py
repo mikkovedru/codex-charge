@@ -1,4 +1,4 @@
-"""System-tray UI for codex-charge (Windows + Linux)."""
+"""System-tray UI for recharge-ai-task (Windows + Linux)."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ try:
     import pystray
     from PIL import Image
 except ImportError as exc:  # pragma: no cover
-    raise SystemExit("Tray app requires: pip install 'codex-charge[tray]'") from exc
+    raise SystemExit("Tray app requires: pip install 'recharge-ai-task[tray]'") from exc
 
 CREATE_NEW_CONSOLE = 0x00000010
-_log = logging.getLogger("codex-charge.tray")
+_log = logging.getLogger("recharge-ai-task.tray")
 
 
 def _setup_logging() -> None:
@@ -46,12 +46,12 @@ _make_icon = make_icon
 
 def _resolve_cli_exe() -> list[str]:
     if getattr(sys, "frozen", False):
-        name = "codex-charge.exe" if sys.platform == "win32" else "codex-charge"
+        name = "recharge-ai-task.exe" if sys.platform == "win32" else "recharge-ai-task"
         cli = Path(sys.executable).with_name(name)
         if cli.exists():
             return [str(cli)]
         raise FileNotFoundError(f"Missing companion CLI executable: {cli}")
-    return [sys.executable, "-m", "codex_charge.cli"]
+    return [sys.executable, "-m", "recharge_ai_task.cli"]
 
 
 def _console_command(args):
@@ -105,7 +105,7 @@ class TrayApp:
         if proc is None:
             return
         code = proc.wait()
-        _log.info("codex-charge exited code=%s", code)
+        _log.info("recharge-ai-task exited code=%s", code)
         with self._lock:
             if self._proc is proc:
                 self._proc = None
@@ -334,7 +334,7 @@ class TrayApp:
         return pystray.Menu(
             pystray.MenuItem("Toggle dashboard", self.toggle_targets,
                              default=sys.platform == "linux", visible=False),
-            pystray.MenuItem("Open Codex Charge…", self.open_targets, visible=sys.platform == "linux"),
+            pystray.MenuItem("Open Recharge AI-task…", self.open_targets, visible=sys.platform == "linux"),
             pystray.MenuItem(
                 t("tray.start_goal"),
                 self.start_goal,
@@ -417,7 +417,7 @@ class TrayApp:
             if is_autostart_enabled():
                 set_autostart(True)  # Update enabled entries with the startup marker.
             self._icon = icon_class(pystray.Icon)(
-                "codex-charge",
+                "recharge-ai-task",
                 _make_icon(IDLE_COLOR),
                 t("app.name"),
                 menu=self._build_menu(),
@@ -439,7 +439,7 @@ def main() -> int:
         from .desktop_goal_ui import main as goal_ui
         return goal_ui()
     if sys.platform not in {"win32", "linux"}:
-        sys.stderr.write("codex-charge tray supports Windows and Linux only.\n")
+        sys.stderr.write("recharge-ai-task tray supports Windows and Linux only.\n")
         return 1
     show_gui = sys.argv[1:] in (["--targets"], ["--settings"])
     settings = sys.argv[1:] == ["--settings"]

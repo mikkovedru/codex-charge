@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-exec "$ROOT/.venv/bin/python" -m codex_charge.tray "$@"
+exec "$ROOT/.venv/bin/python" -m recharge_ai_task.tray "$@"

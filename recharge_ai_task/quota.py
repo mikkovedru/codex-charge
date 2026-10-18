@@ -152,7 +152,7 @@ def fetch_quota(codex_path: str | None = None, timeout: float = 15) -> Quota:
             proc,
             pending,
             "initialize",
-            {"clientInfo": {"name": "codex-charge", "version": "1.0.0"}},
+            {"clientInfo": {"name": "recharge-ai-task", "version": "1.0.0"}},
             responses=responses, timeout=timeout,
         )
         result = _rpc(proc, pending, "account/rateLimits/read", responses=responses, timeout=timeout)

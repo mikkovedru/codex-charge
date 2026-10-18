@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Literal
 
+from ._migration import environment_value, import_settings
 from .desktop_input import DEFAULT_WINDOW_TITLES
 from .i18n import normalize_locale, set_locale
 
@@ -17,8 +18,11 @@ Language = Literal["en", "zh"]
 
 
 def config_dir() -> Path:
-    root = Path(os.environ["CODEX_CHARGE_CONFIG_DIR"]).expanduser() if os.environ.get("CODEX_CHARGE_CONFIG_DIR") else Path.home() / ".codex-charge"
+    explicit = environment_value("CONFIG_DIR")
+    root = Path(explicit).expanduser() if explicit else Path.home() / ".recharge-ai-task"
     root.mkdir(parents=True, exist_ok=True)
+    if not explicit:
+        import_settings(root)
     return root
 
 

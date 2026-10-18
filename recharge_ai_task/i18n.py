@@ -1,4 +1,4 @@
-"""Lightweight gettext-style i18n for codex-charge."""
+"""Lightweight gettext-style i18n for recharge-ai-task."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from ._migration import environment_value
+
 _current_locale = "en"
 
 
@@ -17,7 +19,7 @@ def _locale_dir() -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         base = Path(sys._MEIPASS)
         for candidate in (
-            base / "codex_charge" / "locales",
+            base / "recharge_ai_task" / "locales",
             base / "locales",
         ):
             if candidate.is_dir():
@@ -45,7 +47,7 @@ def get_locale() -> str:
 
 
 def init_locale_from_env() -> str:
-    env = os.environ.get("CODEX_CHARGE_LANG") or os.environ.get("LANG")
+    env = environment_value("LANG") or os.environ.get("LANG")
     if env:
         set_locale(env)
     return get_locale()

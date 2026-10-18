@@ -2,10 +2,10 @@
 from dataclasses import replace
 import pytest
 
-from codex_charge.quota import Quota, RateWindow
-from codex_charge import watch
-from codex_charge.targets import Target
-from codex_charge.target_delivery import DeliveryResult
+from recharge_ai_task.quota import Quota, RateWindow
+from recharge_ai_task import watch
+from recharge_ai_task.targets import Target
+from recharge_ai_task.target_delivery import DeliveryResult
 
 A = Target("thread", "a", "A")
 B = Target("thread", "b", "B")
@@ -139,8 +139,8 @@ def test_each_reset_uses_native_recovery(monkeypatch):
 
 
 def test_cli_can_disable_native_recovery_and_describes_it(monkeypatch, capsys):
-    from codex_charge import cli
-    from codex_charge.config import AppConfig
+    from recharge_ai_task import cli
+    from recharge_ai_task.config import AppConfig
     AppConfig(goal_mode=True).save()
     configs = []
     monkeypatch.setattr(cli, "run_desktop_watch", lambda config: configs.append(config) or 0)

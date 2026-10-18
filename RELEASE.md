@@ -2,7 +2,7 @@
 
 Target: **Windows x86_64** + **Ubuntu x86_64** only.
 
-Repository: https://github.com/Autumnpoem/codex-autocontinue
+Repository: https://github.com/mikkovedru/codex-charge
 
 ---
 
@@ -10,22 +10,22 @@ Repository: https://github.com/Autumnpoem/codex-autocontinue
 
 ```bash
 # Clone & install dev deps
-git clone https://github.com/Autumnpoem/codex-autocontinue.git
-cd codex-autocontinue
+git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+cd recharge-ai-task
 
 pip install -e ".[all,dev]"
 pytest tests/ -v
 ```
 
-Update version in `pyproject.toml` and `codex_charge/__init__.py` if bumping.
+Update version in `pyproject.toml` and `recharge_ai_task/__init__.py` if bumping.
 
 ---
 
 ## 1. Build Windows (on Windows x86_64)
 
 ```powershell
-cd D:\codex-charge
-pip install "codex-charge[all,dev]"
+cd D:\recharge-ai-task
+pip install "recharge-ai-task[all,dev]"
 powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 powershell -ExecutionPolicy Bypass -File scripts\package_release.ps1
 ```
@@ -34,9 +34,9 @@ powershell -ExecutionPolicy Bypass -File scripts\package_release.ps1
 
 | File | Purpose |
 |------|---------|
-| `dist\codex-charge.exe` | CLI wrapper |
-| `dist\codex-charge-tray.exe` | Tray app (no console) |
-| `dist\codex-charge-windows-x86_64.zip` | **Upload to GitHub Release** |
+| `dist\recharge-ai-task.exe` | CLI wrapper |
+| `dist\recharge-ai-task-tray.exe` | Tray app (no console) |
+| `dist\recharge-ai-task-windows-x86_64.zip` | **Upload to GitHub Release** |
 
 > Both `.exe` must stay in the **same folder** for the tray to work.
 
@@ -45,22 +45,22 @@ powershell -ExecutionPolicy Bypass -File scripts\package_release.ps1
 ## 2. Build Ubuntu (on Ubuntu x86_64)
 
 ```bash
-cd ~/codex-autocontinue
+cd ~/recharge-ai-task
 sudo apt update
 sudo apt install -y python3 python3-pip python3-venv
-pip install "codex-charge[tray,dev]"
+pip install "recharge-ai-task[tray,dev]"
 bash scripts/build_linux.sh
 bash scripts/package_release.sh
-chmod +x dist/codex-charge dist/codex-charge-tray
+chmod +x dist/recharge-ai-task dist/recharge-ai-task-tray
 ```
 
 **Output:**
 
 | File | Purpose |
 |------|---------|
-| `dist/codex-charge` | CLI wrapper |
-| `dist/codex-charge-tray` | Tray app |
-| `dist/codex-charge-linux-x86_64.tar.gz` | **Upload to GitHub Release** |
+| `dist/recharge-ai-task` | CLI wrapper |
+| `dist/recharge-ai-task-tray` | Tray app |
+| `dist/recharge-ai-task-linux-x86_64.tar.gz` | **Upload to GitHub Release** |
 
 Linux desktop mode users also need: `sudo apt install xdotool` (X11).
 
@@ -74,8 +74,8 @@ Linux desktop mode users also need: `sudo apt install xdotool` (X11).
 
 ```powershell
 cd dist
-.\codex-charge.exe quota
-.\codex-charge-tray.exe
+.\recharge-ai-task.exe quota
+.\recharge-ai-task-tray.exe
 # Tray → Show Quota / Start Codex (Goal)
 ```
 
@@ -83,8 +83,8 @@ cd dist
 
 ```bash
 cd dist
-./codex-charge quota
-./codex-charge-tray
+./recharge-ai-task quota
+./recharge-ai-task-tray
 ```
 
 Requires Codex CLI installed and logged in on the test machine.
@@ -105,21 +105,21 @@ git push origin v1.1.0
 
 ### Option A — Web UI
 
-1. Open https://github.com/Autumnpoem/codex-autocontinue/releases/new
+1. Open https://github.com/mikkovedru/codex-charge/releases/new
 2. **Choose a tag:** `v1.1.0`
 3. **Release title:** `v1.1.0`
 4. **Description:** copy from [docs/RELEASE_NOTES_v1.1.0.md](docs/RELEASE_NOTES_v1.1.0.md)
 5. **Attach files:**
-   - `dist/codex-charge-windows-x86_64.zip`
-   - `dist/codex-charge-linux-x86_64.tar.gz`
+   - `dist/recharge-ai-task-windows-x86_64.zip`
+   - `dist/recharge-ai-task-linux-x86_64.tar.gz`
 6. Click **Publish release**
 
 ### Option B — GitHub CLI (`gh`)
 
 ```bash
 gh release create v1.1.0 \
-  dist/codex-charge-windows-x86_64.zip \
-  dist/codex-charge-linux-x86_64.tar.gz \
+  dist/recharge-ai-task-windows-x86_64.zip \
+  dist/recharge-ai-task-linux-x86_64.tar.gz \
   --title "v1.1.0" \
   --notes-file docs/RELEASE_NOTES_v1.1.0.md
 ```
@@ -130,18 +130,18 @@ gh release create v1.1.0 \
 
 **Windows:**
 
-1. Download `codex-charge-windows-x86_64.zip`
-2. Extract to e.g. `C:\Tools\codex-charge\`
-3. Double-click `codex-charge-tray.exe`
+1. Download `recharge-ai-task-windows-x86_64.zip`
+2. Extract to e.g. `C:\Tools\recharge-ai-task\`
+3. Double-click `recharge-ai-task-tray.exe`
 4. Right-click tray icon → Start Codex (Goal)
 5. Prerequisite: [Codex CLI](https://github.com/openai/codex) installed & signed in
 
 **Ubuntu:**
 
 ```bash
-tar -xzf codex-charge-linux-x86_64.tar.gz -C ~/codex-charge
-chmod +x ~/codex-charge/codex-charge ~/codex-charge/codex-charge-tray
-~/codex-charge/codex-charge-tray
+tar -xzf recharge-ai-task-linux-x86_64.tar.gz -C ~/recharge-ai-task
+chmod +x ~/recharge-ai-task/recharge-ai-task ~/recharge-ai-task/recharge-ai-task-tray
+~/recharge-ai-task/recharge-ai-task-tray
 ```
 
 ---
@@ -151,7 +151,7 @@ chmod +x ~/codex-charge/codex-charge ~/codex-charge/codex-charge-tray
 ```bash
 pip install build twine
 python -m build
-twine upload dist/codex-charge-*.tar.gz dist/codex_charge-*.whl
+twine upload dist/recharge_ai_task-*.tar.gz dist/recharge_ai_task-*.whl
 ```
 
-Users then: `pip install "codex-charge[all]"` + `codex-charge configure`
+Users then: `pip install "recharge-ai-task[all]"` + `recharge-ai-task configure`

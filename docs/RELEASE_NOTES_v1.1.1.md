@@ -1,6 +1,7 @@
 # Release Notes — v1.1.1
 
-**Repository:** https://github.com/Autumnpoem/codex-autocontinue  
+**Repository:** https://github.com/mikkovedru/codex-charge
+
 **Tag:** `v1.1.1`  
 **License:** MIT
 
@@ -18,19 +19,19 @@
 
 | Platform | File |
 |----------|------|
-| Windows | `codex-charge-windows-x86_64.zip` |
-| Ubuntu | `codex-charge-linux-x86_64.tar.gz` |
+| Windows | `recharge-ai-task-windows-x86_64.zip` |
+| Ubuntu | `recharge-ai-task-linux-x86_64.tar.gz` |
 
-Each archive contains **two binaries** in one folder — run `codex-charge-tray`.
+Each archive contains **two binaries** in one folder — run `recharge-ai-task-tray`.
 
 ### Quick start
 
 1. Download the zip for your platform
 2. Extract to a folder (both binaries must stay together)
-3. Run `codex-charge-tray` (or `codex-charge-tray.exe` on Windows)
+3. Run `recharge-ai-task-tray` (or `recharge-ai-task-tray.exe` on Windows)
 4. Prerequisite: [Codex CLI](https://github.com/openai/codex) installed & signed in
 
-Full docs: [README](https://github.com/Autumnpoem/codex-autocontinue#english)
+Full docs: [README](https://github.com/mikkovedru/codex-charge#english)
 
 ---
 
@@ -46,16 +47,16 @@ Full docs: [README](https://github.com/Autumnpoem/codex-autocontinue#english)
 
 | 平台 | 文件 |
 |------|------|
-| Windows | `codex-charge-windows-x86_64.zip` |
-| Ubuntu | `codex-charge-linux-x86_64.tar.gz` |
+| Windows | `recharge-ai-task-windows-x86_64.zip` |
+| Ubuntu | `recharge-ai-task-linux-x86_64.tar.gz` |
 
-每个压缩包含**两个可执行文件**，放在同一文件夹后运行 `codex-charge-tray`。
+每个压缩包含**两个可执行文件**，放在同一文件夹后运行 `recharge-ai-task-tray`。
 
 ### 快速开始
 
 1. 下载对应平台的压缩包
 2. 解压（两个文件须同目录）
-3. 运行 `codex-charge-tray`（Windows 为 `.exe`）
+3. 运行 `recharge-ai-task-tray`（Windows 为 `.exe`）
 4. 前提：已安装并登录 [Codex CLI](https://github.com/openai/codex)
 
-完整文档：[README 中文](https://github.com/Autumnpoem/codex-autocontinue#中文)
+完整文档：[README 中文](https://github.com/mikkovedru/codex-charge#中文)

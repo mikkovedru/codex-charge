@@ -1,7 +1,7 @@
 import os
 os.environ["PYSTRAY_BACKEND"] = "dummy"
 
-from codex_charge import tray_backend, tray
+from recharge_ai_task import tray_backend, tray
 
 
 def test_cinnamon_detection(monkeypatch):
@@ -23,7 +23,7 @@ def test_backend_override(monkeypatch):
 def test_terminal_arguments(monkeypatch):
     monkeypatch.setattr(tray.sys, "platform", "linux")
     monkeypatch.setattr(tray.shutil, "which", lambda name: "/usr/bin/xterm" if name == "xterm" else None)
-    assert tray._console_command(["codex-charge", "configure"]) == ["/usr/bin/xterm", "-e", "codex-charge", "configure"]
+    assert tray._console_command(["recharge-ai-task", "configure"]) == ["/usr/bin/xterm", "-e", "recharge-ai-task", "configure"]
 
 
 def test_autostart_checkbox(monkeypatch):

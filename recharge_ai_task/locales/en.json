@@ -1,5 +1,5 @@
 {
-  "app.name": "Codex Charge",
+  "app.name": "Recharge AI-task",
   "app.status.idle": "Idle",
   "app.status.running": "Running",
   "app.status.waiting": "Waiting for quota reset",
@@ -19,7 +19,7 @@
   "quota.used": "{label}: {percent:.0f}% used (resets in {remaining})",
   "quota.blocked": "Blocked: next reset at {time} (+ grace)",
 
-  "configure.welcome": "Welcome to codex-charge setup.",
+  "configure.welcome": "Welcome to Recharge AI-task setup.",
   "configure.language_prompt": "Language / 语言 [en/zh]",
   "configure.mode_prompt": "Target [cli/desktop] (CLI terminal or ChatGPT Codex desktop app)",
   "configure.goal_prompt": "Enable goal recovery (desktop: native quota-goal recovery; CLI: first /goal resume)? [Y/n]",

@@ -17,7 +17,7 @@ class CinnamonGtkIcon(GtkIcon):
         self._size_timer = None
         self._xdisplay = display.Display()
         self._plug = Gtk.Plug.new(0)
-        self._plug.set_title("codex-charge-tray")
+        self._plug.set_title("recharge-ai-task-tray")
         self._area = Gtk.DrawingArea()
         self._area.set_size_request(16, 16)
         self._area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
@@ -93,7 +93,7 @@ class CinnamonGtkIcon(GtkIcon):
     def _initialize(self):
         super()._initialize()
         self._size_timer = GLib.timeout_add(500, self._refresh)
-        logging.getLogger("codex-charge.tray").info("Using direct XEmbed drawing for Cinnamon's legacy tray")
+        logging.getLogger("recharge-ai-task.tray").info("Using direct XEmbed drawing for Cinnamon's legacy tray")
 
     def _finalize(self):
         if self._size_timer is not None:

@@ -49,7 +49,7 @@ def run_wrapper(config: WrapperConfig) -> int:
     argv = [codex, *args]
     cmdline = " ".join(argv)
 
-    _log(f"[codex-charge] {t('cli.running')}: {cmdline}")
+    _log(f"[recharge-ai-task] {t('cli.running')}: {cmdline}")
 
     rows, cols = 24, 120
     try:
@@ -63,7 +63,7 @@ def run_wrapper(config: WrapperConfig) -> int:
     try:
         pty = spawn_pty(argv, (rows, cols))
     except FileNotFoundError:
-        _log(f"[codex-charge] {t('cli.not_found')}")
+        _log(f"[recharge-ai-task] {t('cli.not_found')}")
         return 1
 
     watcher = LimitWatcher()
@@ -102,7 +102,7 @@ def run_wrapper(config: WrapperConfig) -> int:
                 if exhausted:
                     quota_reset_at = exhausted.resets_at
             except Exception as exc:
-                _log(f"[codex-charge] {t('cli.quota_fallback_failed', error=exc)}")
+                _log(f"[recharge-ai-task] {t('cli.quota_fallback_failed', error=exc)}")
 
         try:
             wake_at, source = resolve_reset_at(
@@ -111,7 +111,7 @@ def run_wrapper(config: WrapperConfig) -> int:
                 grace_seconds=config.grace_seconds,
             )
         except RuntimeError as exc:
-            _log(f"[codex-charge] {exc}")
+            _log(f"[recharge-ai-task] {exc}")
             with limit_lock:
                 waiting_for_reset = False
             return
@@ -121,18 +121,18 @@ def run_wrapper(config: WrapperConfig) -> int:
 
         wake_local = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(wake_at))
         _log(
-            f"[codex-charge] {t('cli.limit_detected', raw=raw, source=source, prompt=prompt, time=wake_local)}"
+            f"[recharge-ai-task] {t('cli.limit_detected', raw=raw, source=source, prompt=prompt, time=wake_local)}"
         )
         watcher.reset()
 
         try:
             if not sleep_with_proxy(pty, stop, wake_at):
-                _log(f"[codex-charge] {t('cli.exited_before_continue')}")
+                _log(f"[recharge-ai-task] {t('cli.exited_before_continue')}")
                 stop.set()
                 return
 
             _submit(pty, prompt, config.enter_presses, config.key_delay)
-            _log(f"[codex-charge] {t('cli.auto_continue_sent')}")
+            _log(f"[recharge-ai-task] {t('cli.auto_continue_sent')}")
         finally:
             with limit_lock:
                 waiting_for_reset = False

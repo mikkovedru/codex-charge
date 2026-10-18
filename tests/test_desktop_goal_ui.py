@@ -4,11 +4,11 @@ from copy import deepcopy
 from types import SimpleNamespace
 import pytest
 
-if os.environ.get("CODEX_CHARGE_GUI_TESTS") != "1":
+if os.environ.get("RECHARGE_AI_TASK_GUI_TESTS") != "1":
     pytest.skip("Requires Linux GTK/accessibility libraries", allow_module_level=True)
 
-from codex_charge import desktop_goal_ui as ui, goal_control
-from codex_charge.targets import Target
+from recharge_ai_task import desktop_goal_ui as ui, goal_control
+from recharge_ai_task.targets import Target
 
 GOAL = {"threadId": "chosen", "status": "paused", "objective": "Fixture objective", "createdAt": 1, "tokenBudget": 200}
 TARGET = Target("thread", "chosen", "Duplicate title", instance="/fixture")

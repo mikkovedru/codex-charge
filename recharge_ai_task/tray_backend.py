@@ -12,7 +12,9 @@ def prepare_backend() -> None:
         os.environ.setdefault("PYSTRAY_BACKEND", "gtk")
         try:
             from gi.repository import GLib
-            GLib.set_prgname("codex-charge-tray")
+            GLib.set_prgname("recharge-ai-task-tray")
+            if GLib.get_application_name() != "Recharge AI-task":
+                GLib.set_application_name("Recharge AI-task")
         except ImportError:
             pass
 
@@ -30,5 +32,5 @@ def icon_class(default):
             return CinnamonGtkIcon
         except (ImportError, ValueError):
             import logging
-            logging.getLogger("codex-charge.tray").warning("XApp is unavailable; using the GTK tray backend")
+            logging.getLogger("recharge-ai-task.tray").warning("XApp is unavailable; using the GTK tray backend")
     return default

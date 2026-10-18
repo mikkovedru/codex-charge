@@ -1,4 +1,4 @@
-"""Command-line entry for codex-charge."""
+"""Command-line entry for recharge-ai-task."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from .watch import WatchConfig, run_desktop_watch
 from .wrapper import WrapperConfig, run_wrapper
 
 
-def _build_run_parser(prog: str = "codex-charge") -> argparse.ArgumentParser:
+def _build_run_parser(prog: str = "recharge-ai-task") -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=prog,
         description=t("cli.description"),
@@ -61,14 +61,14 @@ def _cmd_quota(codex_path: str | None) -> int:
         codex = discover_codex(codex_path)
         quota = fetch_quota(codex)
     except Exception as exc:
-        sys.stderr.write(f"codex-charge: {exc}\n")
+        sys.stderr.write(f"recharge-ai-task: {exc}\n")
         return 1
     print(format_quota(quota))
     return 0
 
 
 def _cmd_configure(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="codex-charge configure")
+    parser = argparse.ArgumentParser(prog="recharge-ai-task configure")
     parser.add_argument("--lang", choices=["en", "zh"])
     parser.add_argument("--mode", choices=["cli", "desktop"])
     parser.add_argument("--goal", action="store_true")
@@ -97,7 +97,7 @@ def _cmd_configure(argv: list[str]) -> int:
 
 def _cmd_watch(argv: list[str]) -> int:
     user = _load_user_config()
-    parser = argparse.ArgumentParser(prog="codex-charge watch", description=t("help.desktop_mode"))
+    parser = argparse.ArgumentParser(prog="recharge-ai-task watch", description=t("help.desktop_mode"))
     parser.add_argument("--desktop", action="store_true", default=True)
     parser.add_argument("--codex", metavar="PATH")
     goal = parser.add_mutually_exclusive_group()
@@ -126,7 +126,7 @@ def _cmd_watch(argv: list[str]) -> int:
 
 def _cmd_targets(argv):
     from .targets import discover_targets
-    parser = argparse.ArgumentParser(prog="codex-charge targets", description="Discover Codex chats and windows, and select signal recipients")
+    parser = argparse.ArgumentParser(prog="recharge-ai-task targets", description="Discover Codex chats and windows, and select signal recipients")
     parser.add_argument("--json", action="store_true", help="Print all metadata as JSON")
     parser.add_argument("--gui", action="store_true", help="Open the multi-target picker")
     parser.add_argument("--select", action="append", metavar="ID", help="Save this target (repeat for multiple targets)")
@@ -171,7 +171,7 @@ def _cmd_targets(argv):
 
 def _cmd_run(argv: list[str]) -> int:
     user = _load_user_config()
-    parser = _build_run_parser("codex-charge run")
+    parser = _build_run_parser("recharge-ai-task run")
     ns = parser.parse_args(argv)
 
     config = WrapperConfig(
@@ -185,7 +185,7 @@ def _cmd_run(argv: list[str]) -> int:
     try:
         return run_wrapper(config)
     except FileNotFoundError as exc:
-        sys.stderr.write(f"codex-charge: {exc}\n")
+        sys.stderr.write(f"recharge-ai-task: {exc}\n")
         return 1
 
 
@@ -206,8 +206,8 @@ def main(argv: list[str] | None = None) -> int:
   quota            Show current quota and reset times
   configure        Configure command-line settings
 
-Use codex-charge COMMAND --help for command options.
-The codex-charge-gui executable opens the GUI directly."""
+Use recharge-ai-task COMMAND --help for command options.
+The recharge-ai-task-gui executable opens the GUI directly."""
         parser.print_help()
         return 0
 
@@ -233,7 +233,7 @@ The codex-charge-gui executable opens the GUI directly."""
     tail = argv[1:]
 
     if head == "quota":
-        parser = argparse.ArgumentParser(prog="codex-charge quota")
+        parser = argparse.ArgumentParser(prog="recharge-ai-task quota")
         parser.add_argument("--codex", metavar="PATH")
         ns = parser.parse_args(tail)
         return _cmd_quota(ns.codex)

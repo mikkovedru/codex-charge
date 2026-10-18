@@ -1,4 +1,4 @@
-# codex-charge
+# Recharge AI-task
 
 <p align="center">
   <strong>Language / 语言</strong>：
@@ -18,23 +18,23 @@
 **CLI setup / CLI 首次设置**
 
 ```bash
-codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
+recharge-ai-task configure          # pick language (en/zh) + mode (cli/desktop)
 ```
 
-**For the Linux GUI, run `codex-charge gui` and use Settings directly.**
+**For the Linux GUI, run `recharge-ai-task gui` and use Settings directly.**
 
 **Then pick your workflow / 然后按场景选一种：**
 
 | Scenario / 场景 | What to run / 运行命令 | Notes / 说明 |
 |-----------------|------------------------|--------------|
-| **CLI + Goal mode** | `codex-charge --goal` | Wraps `codex` in terminal; first resume sends `/goal resume` |
-| **CLI + normal** | `codex-charge` | Auto-sends `继续` after reset |
-| **CLI + task args** | `codex-charge --goal -- exec "your task"` | Pass args to codex after `--` |
-| **Linux graphical dashboard** | `codex-charge gui` or `codex-charge-gui` | Select recipients, view quota, change settings, start/stop Desktop watch |
-| **ChatGPT Codex desktop app** | `codex-charge watch` | Open Codex and save recipients in the GUI first |
-| **System tray (easiest)** | `codex-charge-tray` | Right-click tray icon → Start / Stop / Quota |
-| **Check quota only** | `codex-charge quota` | Shows short/long window usage |
-| **No Python (Release zip)** | Run `codex-charge-tray.exe` (Win) or `codex-charge-tray` (Linux) | Keep release binaries in the **same folder** (three on Linux, two on Windows); still need Codex CLI installed & logged in |
+| **CLI + Goal mode** | `recharge-ai-task --goal` | Wraps `codex` in terminal; first resume sends `/goal resume` |
+| **CLI + normal** | `recharge-ai-task` | Auto-sends `继续` after reset |
+| **CLI + task args** | `recharge-ai-task --goal -- exec "your task"` | Pass args to codex after `--` |
+| **Linux graphical dashboard** | `recharge-ai-task gui` or `recharge-ai-task-gui` | Select recipients, view quota, change settings, start/stop Desktop watch |
+| **ChatGPT Codex desktop app** | `recharge-ai-task watch` | Open Codex and save recipients in the GUI first |
+| **System tray (easiest)** | `recharge-ai-task-tray` | Right-click tray icon → Start / Stop / Quota |
+| **Check quota only** | `recharge-ai-task quota` | Shows short/long window usage |
+| **No Python (Release zip)** | Run `recharge-ai-task-tray.exe` (Win) or `recharge-ai-task-tray` (Linux) | Keep release binaries in the **same folder** (three on Linux, two on Windows); still need Codex CLI installed & logged in |
 
 **Pre-requisites / 前置条件：** Install [Codex CLI](https://github.com/openai/codex) and sign in with ChatGPT. Linux desktop mode also needs `sudo apt install xdotool` (X11). Native Goal signals use Codex's Resume goal control and require accessibility plus a clipboard manager (included in Mint Cinnamon). Source installs also need `python3-pyatspi`.
 
@@ -48,7 +48,7 @@ codex-charge configure          # pick language (en/zh) + mode (cli/desktop)
 
 Auto-continue **Codex CLI** and the **ChatGPT Codex desktop app** after 5-hour / 7-day usage limits reset.
 
-When quota is exhausted, codex-charge waits for recovery and the grace period, then continues selected tasks. Desktop recipients have independent Prompt and Goal signals; CLI Goal mode enters `/goal resume` in the terminal on its first recovery.
+When quota is exhausted, Recharge AI-task waits for recovery and the grace period, then continues selected tasks. Desktop recipients have independent Prompt and Goal signals; CLI Goal mode enters `/goal resume` in the terminal on its first recovery.
 
 ### Features
 
@@ -65,7 +65,7 @@ When quota is exhausted, codex-charge waits for recovery and the grace period, t
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        codex-charge                          │
+│                       Recharge AI-task                      │
 ├──────────────────────────┬──────────────────────────────────┤
 │      CLI mode (PTY)      │       Desktop mode (watch)        │
 │  spawn codex in PTY      │  poll quota API every N seconds   │
@@ -92,36 +92,36 @@ When quota is exhausted, codex-charge waits for recovery and the grace period, t
 **Windows (full — CLI + tray):**
 
 ```powershell
-pip install "codex-charge[all]"
-codex-charge configure
+pip install "recharge-ai-task[all]"
+recharge-ai-task configure
 ```
 
 **Ubuntu / Debian (tray + desktop):**
 
 ```bash
 sudo apt install xdotool    # required for desktop mode on X11
-pip install "codex-charge[tray]"
-codex-charge configure
+pip install "recharge-ai-task[tray]"
+recharge-ai-task configure
 ```
 
 **CLI only (no tray):**
 
 ```bash
-pip install codex-charge
-codex-charge configure --lang en --mode cli
+pip install recharge-ai-task
+recharge-ai-task configure --lang en --mode cli
 ```
 
 #### 2. First-time setup (language + mode)
 
 ```bash
-codex-charge configure
+recharge-ai-task configure
 # non-interactive example:
-codex-charge configure --lang zh --mode desktop --goal
+recharge-ai-task configure --lang zh --mode desktop --goal
 ```
 
 On first run in an interactive terminal, the setup wizard starts automatically if no config exists.
 
-Config file: `~/.codex-charge/config.json`
+Config file: `~/.recharge-ai-task/config.json`
 
 | Setting | Description |
 |---------|-------------|
@@ -138,19 +138,19 @@ Config file: `~/.codex-charge/config.json`
 
 ```bash
 # CLI mode (default when mode=cli)
-codex-charge --goal
-codex-charge --goal -- exec "your long task"
+recharge-ai-task --goal
+recharge-ai-task --goal -- exec "your long task"
 
 # Linux GUI: choose and save recipients, then start Desktop watch
-codex-charge gui
+recharge-ai-task gui
 # Terminal watcher using the saved recipients
-codex-charge watch
+recharge-ai-task watch
 
 # Check quota
-codex-charge quota
+recharge-ai-task quota
 
 # System tray (Windows / Linux)
-codex-charge-tray
+recharge-ai-task-tray
 ```
 
 ### Desktop app support
@@ -171,9 +171,9 @@ matching has been replaced by explicit recipients.
 
 | Method | Best for | How |
 |--------|----------|-----|
-| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/Autumnpoem/codex-autocontinue/releases) zip, run `codex-charge-tray` |
-| **Pre-built binary** | Users without Python | Keep release executables together; Linux also includes `codex-charge-gui` |
-| **pip install** | Developers | `pip install "codex-charge[all]"` |
+| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/mikkovedru/codex-charge/releases) zip, run `recharge-ai-task-tray` |
+| **Pre-built binary** | Users without Python | Keep release executables together; Linux also includes `recharge-ai-task-gui` |
+| **pip install** | Developers | `pip install "recharge-ai-task[all]"` |
 
 > End users still need **Codex CLI installed and signed in** with a ChatGPT account. This tool only handles auto-continue after quota resets.
 
@@ -196,8 +196,8 @@ Icon: **gray** = idle, **green** = running.
 
 | Platform | Mechanism |
 |----------|-----------|
-| Windows | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\codex-charge-tray.bat` |
-| Linux | `~/.config/autostart/codex-charge-tray.desktop` |
+| Windows | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\recharge-ai-task-tray.bat` |
+| Linux | `~/.config/autostart/recharge-ai-task-tray.desktop` |
 
 Toggle via tray menu **Run at startup**.
 
@@ -208,32 +208,32 @@ Official binaries target **x86_64** on Windows and Ubuntu only (no ARM builds in
 **Windows:**
 
 ```powershell
-pip install "codex-charge[all,dev]"
+pip install "recharge-ai-task[all,dev]"
 powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
-# → dist/codex-charge.exe, dist/codex-charge-tray.exe
+# → dist/recharge-ai-task.exe, dist/recharge-ai-task-tray.exe
 ```
 
 **Ubuntu:**
 
 ```bash
-pip install "codex-charge[tray,dev]"
+pip install "recharge-ai-task[tray,dev]"
 bash scripts/build_linux.sh
-# → dist/codex-charge, dist/codex-charge-tray
+# → dist/recharge-ai-task, dist/recharge-ai-task-tray
 ```
 
 Copy **both** binaries into the same folder before using the tray.
 
 **GitHub Release** (suggested attachments):
 
-- `codex-charge-windows-x86_64.zip`
-- `codex-charge-linux-x86_64.tar.gz`
+- `recharge-ai-task-windows-x86_64.zip`
+- `recharge-ai-task-linux-x86_64.tar.gz`
 
 **PyPI** (optional):
 
 ```bash
 pip install build twine
 python -m build
-twine upload dist/codex-charge-*.tar.gz dist/codex_charge-*.whl
+twine upload dist/recharge_ai_task-*.tar.gz dist/recharge_ai_task-*.whl
 ```
 
 ### Resource usage
@@ -257,7 +257,7 @@ You can leave the tray running in the background — it is lightweight. Codex it
 | `--goal` | First send `/goal resume` | off |
 | `--codex PATH` | Codex executable | auto-detect |
 
-Environment: `CODEX_CHARGE_LANG=zh` · Config: `"language": "zh"`
+Environment: `RECHARGE_AI_TASK_LANG=zh` · Config: `"language": "zh"`
 
 ### FAQ
 
@@ -265,7 +265,7 @@ Environment: `CODEX_CHARGE_LANG=zh` · Config: `"language": "zh"`
 Yes — use `desktop` mode or tray **Start Desktop Watch**. It uses the same quota API as CLI, not Electron hooks.
 
 **Does it work with Cursor / VS Code?**  
-It wraps **Codex CLI** in a terminal. IDE extensions are out of scope; run `codex-charge` in a terminal instead.
+It wraps **Codex CLI** in a terminal. IDE extensions are out of scope; run `recharge-ai-task` in a terminal instead.
 
 **What happens at quota reset?**  
 Wait until `resets_at` from the official API (or parsed terminal message, whichever is later), plus 60 seconds grace, then send `继续` or `/goal resume`.
@@ -276,8 +276,8 @@ Yes. Idle tray/watch uses negligible CPU; only Codex tasks consume meaningful re
 ### Project layout
 
 ```
-codex-charge/
-├── codex_charge/       # Main package
+recharge-ai-task/
+├── recharge_ai_task/       # Main package
 │   ├── cli.py          # Entry point
 │   ├── configure.py    # Language + mode wizard
 │   ├── wrapper.py      # CLI PTY mode
@@ -297,8 +297,8 @@ codex-charge/
 ### Development
 
 ```bash
-git clone https://github.com/Autumnpoem/codex-autocontinue.git
-cd codex-charge
+git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+cd recharge-ai-task
 pip install -e ".[all,dev]"
 pytest tests/ -v
 ```
@@ -326,23 +326,23 @@ See also: [CONTRIBUTING.md](CONTRIBUTING.md) · [RELEASE.md](RELEASE.md) · [OPE
 When a limit is hit (CLI mode), stderr shows:
 
 ```text
-[codex-charge] limit detected ('4 hours 12 minutes'), source=quota API, will send '继续' at 2026-07-13 04:01:00
-[codex-charge] auto-continue sent
+[recharge-ai-task] limit detected ('4 hours 12 minutes'), source=quota API, will send '继续' at 2026-07-13 04:01:00
+[recharge-ai-task] auto-continue sent
 ```
 
-Log files: `~/.codex-charge/tray.log`, `~/.codex-charge/wrapper.log`
+Log files: `~/.recharge-ai-task/tray.log`, `~/.recharge-ai-task/wrapper.log`
 
 ### GitHub repository
 
 | Field | Value |
 |-------|-------|
-| **Repository** | [Autumnpoem/codex-autocontinue](https://github.com/Autumnpoem/codex-autocontinue) |
-| **CLI / package name** | `codex-charge` (pip install name) |
+| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/codex-charge) |
+| **CLI / package name** | `recharge-ai-task` (pip install name) |
 | **Description** | Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64, MIT |
 | **License** | MIT |
 | **Topics** | `codex`, `openai`, `chatgpt`, `automation`, `quota`, `rate-limit`, `cli`, `python`, `windows`, `linux`, `tray-app` |
 
-Repository: [github.com/Autumnpoem/codex-autocontinue](https://github.com/Autumnpoem/codex-autocontinue)
+Repository: [Recharge AI-task source](https://github.com/mikkovedru/codex-charge)
 
 ### License
 
@@ -371,7 +371,7 @@ MIT — see [LICENSE](LICENSE).
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                        codex-charge                          │
+│                       Recharge AI-task                      │
 ├──────────────────────────┬──────────────────────────────────┤
 │      CLI 模式（PTY）      │      桌面版模式（watch）          │
 │  伪终端启动 codex         │  轮询 quota API                   │
@@ -398,36 +398,36 @@ MIT — see [LICENSE](LICENSE).
 **Windows（完整版）：**
 
 ```powershell
-pip install "codex-charge[all]"
-codex-charge configure
+pip install "recharge-ai-task[all]"
+recharge-ai-task configure
 ```
 
 **Ubuntu / Debian：**
 
 ```bash
 sudo apt install xdotool    # 桌面模式需要（X11）
-pip install "codex-charge[tray]"
-codex-charge configure
+pip install "recharge-ai-task[tray]"
+recharge-ai-task configure
 ```
 
 **仅 CLI（无托盘）：**
 
 ```bash
-pip install codex-charge
-codex-charge configure --lang zh --mode cli
+pip install recharge-ai-task
+recharge-ai-task configure --lang zh --mode cli
 ```
 
 #### 2. 首次配置（语言 + 模式）
 
 ```bash
-codex-charge configure
+recharge-ai-task configure
 # 非交互示例：
-codex-charge configure --lang zh --mode desktop --goal
+recharge-ai-task configure --lang zh --mode desktop --goal
 ```
 
 在交互式终端首次运行且尚无配置文件时，会自动进入配置向导。
 
-配置文件：`~/.codex-charge/config.json`
+配置文件：`~/.recharge-ai-task/config.json`
 
 | 配置项 | 说明 |
 |--------|------|
@@ -442,17 +442,17 @@ codex-charge configure --lang zh --mode desktop --goal
 
 ```bash
 # CLI 模式（mode=cli 时默认）
-codex-charge --goal
-codex-charge --goal -- exec "你的长任务"
+recharge-ai-task --goal
+recharge-ai-task --goal -- exec "你的长任务"
 
 # 桌面版（请先打开 ChatGPT Codex 桌面应用）
-codex-charge watch
+recharge-ai-task watch
 
 # 查看额度
-codex-charge quota
+recharge-ai-task quota
 
 # 系统托盘
-codex-charge-tray
+recharge-ai-task-tray
 ```
 
 ### 桌面版 Codex 支持
@@ -481,9 +481,9 @@ codex-charge-tray
 
 | 方式 | 适合谁 | 操作 |
 |------|--------|------|
-| **托盘小应用** | 不想碰命令行 | 下载 [GitHub Release](https://github.com/Autumnpoem/codex-autocontinue/releases) 压缩包，运行 `codex-charge-tray` |
+| **托盘小应用** | 不想碰命令行 | 下载 [GitHub Release](https://github.com/mikkovedru/codex-charge/releases) 压缩包，运行 `recharge-ai-task-tray` |
 | **打包 exe** | 没有 Python 的用户 | 同一文件夹放两个可执行文件 |
-| **pip 安装** | 开发者 | `pip install "codex-charge[all]"` + `configure` |
+| **pip 安装** | 开发者 | `pip install "recharge-ai-task[all]"` + `configure` |
 
 对方电脑仍需已安装 **Codex CLI** 并登录 ChatGPT；本工具只负责限额恢复后的自动继续。
 
@@ -506,8 +506,8 @@ codex-charge-tray
 
 | 平台 | 机制 |
 |------|------|
-| Windows | `%APPDATA%\...\Startup\codex-charge-tray.bat` |
-| Linux | `~/.config/autostart/codex-charge-tray.desktop` |
+| Windows | `%APPDATA%\...\Startup\recharge-ai-task-tray.bat` |
+| Linux | `~/.config/autostart/recharge-ai-task-tray.desktop` |
 
 在托盘菜单勾选 **开机自启** 即可；取消勾选会删除启动项。
 
@@ -518,32 +518,32 @@ codex-charge-tray
 **Windows：**
 
 ```powershell
-pip install "codex-charge[all,dev]"
+pip install "recharge-ai-task[all,dev]"
 powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
-# → dist\codex-charge.exe, dist\codex-charge-tray.exe
+# → dist\recharge-ai-task.exe, dist\recharge-ai-task-tray.exe
 ```
 
 **Ubuntu：**
 
 ```bash
-pip install "codex-charge[tray,dev]"
+pip install "recharge-ai-task[tray,dev]"
 bash scripts/build_linux.sh
-# → dist/codex-charge, dist/codex-charge-tray
+# → dist/recharge-ai-task, dist/recharge-ai-task-tray
 ```
 
 **两个可执行文件必须放在同一目录** 才能使用托盘。
 
 **GitHub Release** 建议附件：
 
-- `codex-charge-windows-x86_64.zip`
-- `codex-charge-linux-x86_64.tar.gz`
+- `recharge-ai-task-windows-x86_64.zip`
+- `recharge-ai-task-linux-x86_64.tar.gz`
 
 **PyPI**（可选）：
 
 ```bash
-pip install "codex-charge[all]"    # Windows
-pip install "codex-charge[tray]"   # Linux 托盘
-codex-charge configure             # 选语言 + 模式
+pip install "recharge-ai-task[all]"    # Windows
+pip install "recharge-ai-task[tray]"   # Linux 托盘
+recharge-ai-task configure             # 选语言 + 模式
 ```
 
 ### 资源占用
@@ -567,7 +567,7 @@ codex-charge configure             # 选语言 + 模式
 | `--goal` | 首次发 `/goal resume` | 关 |
 | `--codex PATH` | 指定 codex 路径 | 自动查找 |
 
-环境变量：`CODEX_CHARGE_LANG=zh` · 配置：`"language": "zh"`
+环境变量：`RECHARGE_AI_TASK_LANG=zh` · 配置：`"language": "zh"`
 
 ### 常见问题
 
@@ -575,7 +575,7 @@ codex-charge configure             # 选语言 + 模式
 支持。使用 `desktop` 模式或托盘「启动桌面版监视」，走与 CLI 相同的 quota API，不 hook Electron。
 
 **能在 Cursor / VS Code 里用吗？**  
-本工具包装的是 **Codex CLI 终端**。IDE 插件不在范围内；请在终端里运行 `codex-charge`。
+本工具包装的是 **Codex CLI 终端**。IDE 插件不在范围内；请在终端里运行 `recharge-ai-task`。
 
 **额度恢复后会怎样？**  
 等到官方 API 的 `resets_at`（或与终端解析结果中更晚的那个）+ 60 秒 grace，然后自动发送 `继续` 或 `/goal resume`。
@@ -586,8 +586,8 @@ codex-charge configure             # 选语言 + 模式
 ### 项目结构
 
 ```
-codex-charge/
-├── codex_charge/       # 主程序包
+recharge-ai-task/
+├── recharge_ai_task/       # 主程序包
 │   ├── cli.py          # 命令行入口
 │   ├── configure.py    # 语言 + 模式配置向导
 │   ├── wrapper.py      # CLI PTY 模式
@@ -607,8 +607,8 @@ codex-charge/
 ### 开发与测试
 
 ```bash
-git clone https://github.com/Autumnpoem/codex-autocontinue.git
-cd codex-charge
+git clone https://github.com/mikkovedru/codex-charge.git recharge-ai-task
+cd recharge-ai-task
 pip install -e ".[all,dev]"
 pytest tests/ -v
 ```
@@ -636,24 +636,24 @@ pytest tests/ -v
 CLI 模式触限时的 stderr：
 
 ```text
-[codex-charge] limit detected ('4 hours 12 minutes'), source=quota API, will send '继续' at 2026-07-13 04:01:00
-[codex-charge] auto-continue sent
+[recharge-ai-task] limit detected ('4 hours 12 minutes'), source=quota API, will send '继续' at 2026-07-13 04:01:00
+[recharge-ai-task] auto-continue sent
 ```
 
-日志文件：`~/.codex-charge/tray.log`、`~/.codex-charge/wrapper.log`
+日志文件：`~/.recharge-ai-task/tray.log`、`~/.recharge-ai-task/wrapper.log`
 
 ### GitHub 仓库
 
 | 字段 | 值 |
 |------|-----|
-| **Repository** | [Autumnpoem/codex-autocontinue](https://github.com/Autumnpoem/codex-autocontinue) |
-| **CLI / 包名** | `codex-charge`（pip 安装名） |
+| **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/codex-charge) |
+| **CLI / 包名** | `recharge-ai-task`（pip 安装名） |
 | **Description** | Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64, MIT |
 | **Description（中文参考）** | Codex 5h/7d 限额恢复后自动继续（CLI + ChatGPT 桌面版）· 双语 · Win/Ubuntu x86_64 · MIT |
 | **License** | MIT |
 | **Topics** | `codex`, `openai`, `chatgpt`, `automation`, `quota`, `rate-limit`, `cli`, `python`, `windows`, `linux`, `tray-app` |
 
-仓库地址：[github.com/Autumnpoem/codex-autocontinue](https://github.com/Autumnpoem/codex-autocontinue)
+仓库地址：[Recharge AI-task source](https://github.com/mikkovedru/codex-charge)
 
 ### 许可
 
@@ -666,24 +666,43 @@ MIT — 见 [LICENSE](LICENSE)。
   <a href="#english">↑ English</a> · <a href="#中文">↑ 中文</a>
 </p>
 
+## Project identity and upgrades
+
+The application is **Recharge AI-task**. Its package and commands use
+`recharge-ai-task`, and the Python package is `recharge_ai_task`.
+Run `recharge-ai-task gui` or `recharge-ai-task-gui` for the dashboard.
+
+Settings now live in `~/.recharge-ai-task/config.json`. On the first default
+launch, existing settings from the previous name are copied byte for byte;
+existing new settings are never overwritten and the original remains a backup.
+Explicit `RECHARGE_AI_TASK_CONFIG_DIR` paths stay isolated. The previous
+configuration and language environment variables are accepted during upgrades,
+with the new variables taking precedence. Startup registration uses
+`recharge-ai-task-tray.desktop` on Linux or `recharge-ai-task-tray.bat` on Windows;
+enabling or disabling startup also retires its previous registration.
+
+Project links use this repository's existing GitHub address. Its server-side
+repository name has not changed. The original upstream is
+[Autumnpoem's project](https://github.com/Autumnpoem/codex-autocontinue).
+
 ## Linux Mint Cinnamon
 
-The tray uses an opaque black/white C+ image. When Cinnamon's native XApp status applet is active, it uses XApp; with legacy or collapsible trays it uses an opaque XEmbed drawing surface at the actual allocated size, avoiding GTK StatusIcon caches and clipping. Image paths bypass symbolic icon recoloring; status is also shown by the tooltip and bottom color strip. Both left and right clicks open the menu. Cinnamon still controls the panel's icon size and whether its XApp status applet is visible.
+The tray uses an opaque black/white R+ image. When Cinnamon's native XApp status applet is active, it uses XApp; with legacy or collapsible trays it uses an opaque XEmbed drawing surface at the actual allocated size, avoiding GTK StatusIcon caches and clipping. Image paths bypass symbolic icon recoloring; status is also shown by the tooltip and bottom color strip. Both left and right clicks open the menu. Cinnamon still controls the panel's icon size and whether its XApp status applet is visible.
 
 ```bash
 sudo apt install python3-venv python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 gir1.2-xapp-1.0 python3-pyatspi gir1.2-atspi-2.0 xdotool
 /usr/bin/python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -e ".[tray,dev]"
 PYTHON=.venv/bin/python bash scripts/build_linux.sh
-./dist/codex-charge-tray
+./dist/recharge-ai-task-tray
 ```
 
-Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher works from any directory. Use `CODEX_CHARGE_CONFIG_DIR` for isolated settings during checks; live quota tests require `CODEX_CHARGE_LIVE_TESTS=1`. `PYSTRAY_BACKEND` can explicitly override the Cinnamon backend selection.
+Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher works from any directory. Use `RECHARGE_AI_TASK_CONFIG_DIR` for isolated settings during checks; live quota tests require `RECHARGE_AI_TASK_LIVE_TESTS=1`. `PYSTRAY_BACKEND` can explicitly override the Cinnamon backend selection.
 
 
 ## Choose Codex signal recipients
 
-The tray menu now has **Open Codex Charge…**. Select one or several chats or
+The tray menu now has **Open Recharge AI-task…**. Select one or several chats or
 windows; checkbox and prompt changes save automatically for quota-reset signals.
 The picker shows titles,
 thread/window IDs, process IDs, profiles, deep links, projects and live desktop
@@ -691,15 +710,15 @@ owners. Chat targets address a stable ID; window targets use the chat and focuse
 input currently shown in that window.
 
 ```bash
-./dist/codex-charge gui
-./dist/codex-charge-gui
-./dist/codex-charge targets --gui
-./dist/codex-charge targets --json
-./dist/codex-charge targets --select THREAD_ID_1 --select THREAD_ID_2
+./dist/recharge-ai-task gui
+./dist/recharge-ai-task-gui
+./dist/recharge-ai-task targets --gui
+./dist/recharge-ai-task targets --json
+./dist/recharge-ai-task targets --select THREAD_ID_1 --select THREAD_ID_2
 ```
 
-After installing the Python package, use `codex-charge gui` or `codex-charge-gui`.
-For a release archive, keep all three executables together. `codex-charge --help`
+After installing the Python package, use `recharge-ai-task gui` or `recharge-ai-task-gui`.
+For a release archive, keep all three executables together. `recharge-ai-task --help`
 lists both GUI commands. GUI launch commands also start the tray, or reuse the
 running tray and bring its dashboard forward. Closing the window keeps the tray
 and its watch available. Double-click the tray icon to hide the open dashboard

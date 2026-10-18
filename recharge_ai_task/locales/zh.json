@@ -1,5 +1,5 @@
 {
-  "app.name": "Codex Charge",
+  "app.name": "Recharge AI-task",
   "app.status.idle": "空闲",
   "app.status.running": "运行中",
   "app.status.waiting": "等待额度恢复",
@@ -19,7 +19,7 @@
   "quota.used": "{label}: 已用 {percent:.0f}%（{remaining} 后重置）",
   "quota.blocked": "已触限：下次重置 {time}（+ 宽限）",
 
-  "configure.welcome": "欢迎使用 codex-charge 配置向导。",
+  "configure.welcome": "欢迎使用 Recharge AI-task 配置向导。",
   "configure.language_prompt": "语言 Language [en/zh]",
   "configure.mode_prompt": "目标模式 [cli/desktop]（CLI 终端 或 ChatGPT Codex 桌面版）",
   "configure.goal_prompt": "启用目标恢复（桌面：原生恢复额度受限目标；CLI：首次发送 /goal resume）？[Y/n]",

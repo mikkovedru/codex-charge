@@ -5,13 +5,13 @@ import sys
 import pytest
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_GUI_TESTS") != "1", reason="Requires an active Cinnamon panel")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_GUI_TESTS") != "1", reason="Requires an active Cinnamon panel")
 def test_real_cinnamon_icon():
     env = dict(os.environ)
     env.pop("PYSTRAY_BACKEND", None)
     result = subprocess.run([sys.executable, "-c", r"""
-from codex_charge import tray
-from codex_charge.tray import TrayApp
+from recharge_ai_task import tray
+from recharge_ai_task.tray import TrayApp
 tray.is_autostart_enabled = lambda: False
 from gi.repository import GLib, Gtk
 app = TrayApp()
@@ -53,14 +53,14 @@ assert not errors, errors
     assert "CRITICAL" not in result.stderr, result.stderr
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_GUI_TESTS") != "1", reason="Requires an active Cinnamon panel")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_GUI_TESTS") != "1", reason="Requires an active Cinnamon panel")
 def test_double_click_toggles_shared_dashboard_and_close_keeps_tray():
     env = dict(os.environ)
     env.pop("PYSTRAY_BACKEND", None)
     result = subprocess.run([sys.executable, "-c", r'''
 import subprocess, sys
-from codex_charge import tray, target_ui, tray_control
-from codex_charge.targets import Inventory
+from recharge_ai_task import tray, target_ui, tray_control
+from recharge_ai_task.targets import Inventory
 from gi.repository import GLib
 import time
 # No live quota queries, chat discovery, startup changes or chat messages.
@@ -118,9 +118,9 @@ def reuse():
     assert picker is windows[0]
     assert picker._prompt_text() == 'Keep this\nmultiline prompt'
     picker.hide()  # CLI launch restores a hidden dashboard and never toggles it off.
-    for command in ([sys.executable, '-m', 'codex_charge.gui'],
-                    [sys.executable, '-m', 'codex_charge.cli', 'gui'],
-                    [sys.executable, '-m', 'codex_charge.cli', 'targets', '--gui']):
+    for command in ([sys.executable, '-m', 'recharge_ai_task.gui'],
+                    [sys.executable, '-m', 'recharge_ai_task.cli', 'gui'],
+                    [sys.executable, '-m', 'recharge_ai_task.cli', 'targets', '--gui']):
         call = subprocess.run(command, capture_output=True, text=True, timeout=8)
         assert call.returncode == 0, call.stderr
     GLib.timeout_add(300, stage(close))

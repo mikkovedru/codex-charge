@@ -18,7 +18,7 @@ from .codex_ipc import DeliveryUncertain
 def ui_lock():
     # Serialize native controls across tray, CLI, and separate configurations.
     directory = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
-    path = directory / f"codex-charge-goal-ui-{os.getuid()}.lock"
+    path = directory / f"recharge-ai-task-goal-ui-{os.getuid()}.lock"
     descriptor = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
         info = os.fstat(descriptor)
@@ -32,12 +32,12 @@ def ui_lock():
 
 def activate(target, expected, desktop):
     if getattr(sys, "frozen", False):
-        companion = Path(sys.executable).resolve().with_name("codex-charge-tray")
+        companion = Path(sys.executable).resolve().with_name("recharge-ai-task-tray")
         if not companion.is_file():
-            raise RuntimeError("Native Goal controls require the companion codex-charge-tray executable")
+            raise RuntimeError("Native Goal controls require the companion recharge-ai-task-tray executable")
         command = [str(companion), "--resume-goal-ui"]
     else:
-        command = [sys.executable, "-m", "codex_charge.desktop_goal_ui"]
+        command = [sys.executable, "-m", "recharge_ai_task.desktop_goal_ui"]
     pid, uid, _gid = struct.unpack("3i", desktop.socket.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
     if uid != os.getuid() or pid <= 0:
         raise RuntimeError("Native Goal controls require a same-user desktop owner")

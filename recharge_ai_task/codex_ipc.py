@@ -34,7 +34,7 @@ class DesktopIPC:
         self.socket.settimeout(self.timeout)
         try:
             self.socket.connect(self.endpoint)
-            response = self.request("initialize", {"clientType": "codex-charge"})
+            response = self.request("initialize", {"clientType": "recharge-ai-task"})
             self.client_id = response["result"]["clientId"]
         except Exception:
             self.socket.close()

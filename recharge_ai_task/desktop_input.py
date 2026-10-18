@@ -9,7 +9,7 @@ import sys
 import time
 from typing import Callable
 
-_log = logging.getLogger("codex-charge.desktop")
+_log = logging.getLogger("recharge-ai-task.desktop")
 
 DEFAULT_WINDOW_TITLES = ("Codex", "ChatGPT", "OpenAI Codex")
 

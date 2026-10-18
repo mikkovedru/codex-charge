@@ -33,7 +33,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-x86_64
-          path: dist/codex-charge-windows-x86_64.zip
+          path: dist/recharge-ai-task-windows-x86_64.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -54,12 +54,12 @@ jobs:
         run: |
           bash scripts/build_linux.sh
           bash scripts/package_release.sh
-          chmod +x dist/codex-charge dist/codex-charge-tray
+          chmod +x dist/recharge-ai-task dist/recharge-ai-task-tray
 
       - uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64
-          path: dist/codex-charge-linux-x86_64.tar.gz
+          path: dist/recharge-ai-task-linux-x86_64.tar.gz
 
   release:
     needs: [build-windows, build-linux]
@@ -76,5 +76,5 @@ jobs:
         with:
           body_path: docs/RELEASE_NOTES_v1.1.1.md
           files: |
-            artifacts/windows-x86_64/codex-charge-windows-x86_64.zip
-            artifacts/linux-x86_64/codex-charge-linux-x86_64.tar.gz
+            artifacts/windows-x86_64/recharge-ai-task-windows-x86_64.zip
+            artifacts/linux-x86_64/recharge-ai-task-linux-x86_64.tar.gz

@@ -10,7 +10,7 @@ try:
     from winpty.ptyprocess import PtyProcess
 except ImportError as exc:  # pragma: no cover
     raise ImportError(
-        "Windows PTY support requires pywinpty. Install with: pip install 'codex-charge[windows]'"
+        "Windows PTY support requires pywinpty. Install with: pip install 'recharge-ai-task[windows]'"
     ) from exc
 
 from .pty_backend import StopEvent

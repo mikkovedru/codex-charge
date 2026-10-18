@@ -5,15 +5,15 @@ import sys
 import pytest
 
 
-@pytest.mark.skipif(os.environ.get("CODEX_CHARGE_GUI_TESTS") != "1", reason="Requires Linux GTK and a display")
+@pytest.mark.skipif(os.environ.get("RECHARGE_AI_TASK_GUI_TESTS") != "1", reason="Requires Linux GTK and a display")
 def test_picker_filters_selects_and_saves():
     result = subprocess.run([sys.executable, "-c", r'''
-from codex_charge import target_ui
-from codex_charge.targets import Inventory, Target
-from codex_charge.target_delivery import DeliveryResult
-from codex_charge.config import AppConfig, config_dir
-from codex_charge.quota import Quota, RateWindow
-from codex_charge import autostart
+from recharge_ai_task import target_ui
+from recharge_ai_task.targets import Inventory, Target
+from recharge_ai_task.target_delivery import DeliveryResult
+from recharge_ai_task.config import AppConfig, config_dir
+from recharge_ai_task.quota import Quota, RateWindow
+from recharge_ai_task import autostart
 from pathlib import Path
 from dataclasses import replace
 import time
@@ -53,7 +53,7 @@ def check():
     if window.busy or window.runtime_busy or window.quota_busy or window.discovery_busy:
         return True
     try:
-        assert window.get_title() == "Codex Charge"
+        assert window.get_title() == "Recharge AI-task"
         assert not any(isinstance(child, Gtk.Label) and "Choose chats by ID" in child.get_text() for child in window.get_child().get_children())
         assert not hasattr(window, "save_state")
         assert "42%" in window.quota_label.get_text()
@@ -71,7 +71,7 @@ def check():
         assert window.signal.get_wrap_mode() == Gtk.WrapMode.WORD_CHAR
         assert isinstance(window.status, Gtk.ScrolledWindow)
         assert window.status.get_allocated_height() >= 96 and not window.status.view.get_editable()
-        from codex_charge.status_display import COLORS, TASK_STATES, GOAL_STATES, status_level
+        from recharge_ai_task.status_display import COLORS, TASK_STATES, GOAL_STATES, status_level
         # Each window gets its own threshold color, including recovery to normal.
         for primary, secondary in ((84.9,85), (85,100), (99.9,84.9), (100,99.9), (101,0), (0,0)):
             window.quota = replace(current_quota,
@@ -110,7 +110,7 @@ def check():
         window.render_quota()
         from datetime import datetime
         from unittest.mock import patch
-        from codex_charge import status_log
+        from recharge_ai_task import status_log
         local_time = datetime(2026,10,10,14,23,45).astimezone()
         with patch.object(status_log, "datetime") as clock:
             clock.now.return_value = local_time
@@ -301,7 +301,7 @@ def check():
         assert "failed" in window.inventory_status.get_text()
         assert "disconnected" in window.status.latest_text and window.status.latest_level == "error"
         assert not window.dirty()
-        from codex_charge.settings_ui import SettingsDialog
+        from recharge_ai_task.settings_ui import SettingsDialog
         dialog = SettingsDialog(window)
         dialog.grace.set_value(37)
         dialog.poll.set_value(9)

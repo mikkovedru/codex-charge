@@ -161,7 +161,7 @@ def row_chat_id(pid, row):
         if link is None:
             raise RuntimeError("Codex does not expose its Copy deeplink action")
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        clipboard.set_text("codex-charge-verification:" + str(uuid.uuid4()), -1)
+        clipboard.set_text("recharge-ai-task-verification:" + str(uuid.uuid4()), -1)
         active_window(pid)
         if not link.queryAction().doAction(0):
             raise RuntimeError("Codex did not copy its chat identity")

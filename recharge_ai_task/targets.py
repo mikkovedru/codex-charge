@@ -117,7 +117,7 @@ class AppServer:
             sock.connect(self.path)
             self.connection = websocket.create_connection("ws://localhost/", socket=sock,
                 timeout=4, suppress_origin=True)
-            init = self.call("initialize", {"clientInfo": {"name": "codex-charge", "version": "1.1.1"}})
+            init = self.call("initialize", {"clientInfo": {"name": "recharge-ai-task", "version": "1.1.1"}})
             self.home = Path(init["codexHome"])
             self.connection.send(json.dumps({"method": "initialized"}))
         except Exception:
@@ -249,7 +249,7 @@ def discover_windows():
                     window = connection.create_resource_object("window", int(xid))
                     wmclass = " ".join(window.get_wm_class() or ())
                     # Match application identity, never generic title text (browsers etc.).
-                    if not any(token in wmclass.lower() for token in ("chatgpt", "codex")) or "codex-charge" in wmclass.lower():
+                    if not any(token in wmclass.lower() for token in ("chatgpt", "codex")) or "recharge-ai-task" in wmclass.lower():
                         continue
                     pid_prop = window.get_full_property(connection.intern_atom("_NET_WM_PID"), 0)
                     pid = int(pid_prop.value[0]) if pid_prop is not None else None

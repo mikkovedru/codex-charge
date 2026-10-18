@@ -1,4 +1,4 @@
-# codex-charge
+# Recharge AI-task
 
 <p align="center">
   完整文档已合并至主 README，请使用顶部语言切换。

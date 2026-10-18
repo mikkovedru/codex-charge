@@ -7,11 +7,11 @@ from dataclasses import replace
 
 import pytest
 
-from codex_charge import targets, target_delivery as delivery, watch
-from codex_charge.codex_ipc import DesktopIPC
-from codex_charge.config import AppConfig
-from codex_charge.quota import RateWindow
-from codex_charge.targets import Target
+from recharge_ai_task import targets, target_delivery as delivery, watch
+from recharge_ai_task.codex_ipc import DesktopIPC
+from recharge_ai_task.config import AppConfig
+from recharge_ai_task.quota import RateWindow
+from recharge_ai_task.targets import Target
 
 
 def test_saved_metadata_read_only_and_distinct_ids(tmp_path):
@@ -179,7 +179,7 @@ def test_no_selection_does_not_send(monkeypatch):
 
 
 def test_uncertain_acknowledgment_is_not_retryable(monkeypatch):
-    from codex_charge.codex_ipc import DeliveryUncertain
+    from recharge_ai_task.codex_ipc import DeliveryUncertain
     desktop = DesktopIPC("unused")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: (_ for _ in ()).throw(TimeoutError()))
     with pytest.raises(DeliveryUncertain):
@@ -219,7 +219,7 @@ def test_uncertain_watch_delivery_is_not_repeated(monkeypatch):
 
 @pytest.mark.parametrize("error", ["request-timeout", "client-disconnected"])
 def test_router_timeout_after_submission_is_uncertain(monkeypatch, error):
-    from codex_charge.codex_ipc import DeliveryUncertain
+    from recharge_ai_task.codex_ipc import DeliveryUncertain
     desktop = DesktopIPC("unused")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: (_ for _ in ()).throw(RuntimeError(error)))
     with pytest.raises(DeliveryUncertain):
@@ -241,7 +241,7 @@ def test_focus_lost_after_typing_is_uncertain(monkeypatch):
 
 
 def test_cli_selects_ids_with_duplicate_titles(monkeypatch, capsys):
-    from codex_charge import cli
+    from recharge_ai_task import cli
     a, b = Target("thread", "a", "Same"), Target("thread", "b", "Same")
     monkeypatch.setattr(targets, "discover_targets", lambda: targets.Inventory([a,b]))
     assert cli.main(["targets", "--select", "a", "--select", "b", "--json"]) == 0
@@ -252,7 +252,7 @@ def test_cli_selects_ids_with_duplicate_titles(monkeypatch, capsys):
 
 
 def test_malformed_submission_acknowledgment_is_uncertain(monkeypatch):
-    from codex_charge.codex_ipc import DeliveryUncertain
+    from recharge_ai_task.codex_ipc import DeliveryUncertain
     desktop = DesktopIPC("unused")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: {"handledByClientId": "owner"})
     with pytest.raises(DeliveryUncertain):
@@ -264,7 +264,7 @@ def test_malformed_submission_acknowledgment_is_uncertain(monkeypatch):
 
 @pytest.mark.parametrize("turn", [None, {}, {"id": ""}, {"id": 42}, []])
 def test_missing_turn_identity_is_uncertain(monkeypatch, turn):
-    from codex_charge.codex_ipc import DeliveryUncertain
+    from recharge_ai_task.codex_ipc import DeliveryUncertain
     desktop = DesktopIPC("unused")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: {
         "handledByClientId": "owner", "result": {"result": {"turn": turn}}})
@@ -331,7 +331,7 @@ def test_discovery_keeps_paths_and_reports_unreadable_project_names(monkeypatch,
 
 @pytest.mark.parametrize("result", [None, [], {}, {"result": None}, {"result": []}, {"result": {}}, {"result": {"turnId": ""}}])
 def test_malformed_steer_acknowledgement_is_uncertain(monkeypatch, result):
-    from codex_charge.codex_ipc import DeliveryUncertain
+    from recharge_ai_task.codex_ipc import DeliveryUncertain
     desktop = DesktopIPC("unused")
     monkeypatch.setattr(desktop, "request", lambda *a, **k: {"handledByClientId": "owner", "result": result})
     with pytest.raises(DeliveryUncertain):

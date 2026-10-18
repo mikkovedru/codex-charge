@@ -1,6 +1,6 @@
 """Tests for i18n."""
 
-from codex_charge.i18n import normalize_locale, set_locale, t
+from recharge_ai_task.i18n import normalize_locale, set_locale, t
 
 
 def test_normalize_locale() -> None:
@@ -11,6 +11,6 @@ def test_normalize_locale() -> None:
 
 def test_translate_en_zh() -> None:
     set_locale("en")
-    assert "Codex Charge" in t("app.name")
+    assert "Recharge AI-task" in t("app.name")
     set_locale("zh")
     assert t("tray.exit") == "退出"
