@@ -169,7 +169,7 @@ def test_partial_reset_retries_only_failed_target(monkeypatch):
     monkeypatch.setattr(watch, "deliver_targets", send)
     monkeypatch.setattr(watch, "recover_target", lambda target, text, **kwargs: send([target], text, **kwargs)[0])
     watch.run_desktop_watch(watch.WatchConfig(desktop_targets=(a,b), goal_mode=True, grace_seconds=0), Stop())
-    assert calls == [("a", "继续"), ("b", "继续"), ("b", "继续")]
+    assert calls == [("a", "Continue"), ("b", "Continue"), ("b", "Continue")]
 
 
 def test_no_selection_does_not_send(monkeypatch):
@@ -214,7 +214,7 @@ def test_uncertain_watch_delivery_is_not_repeated(monkeypatch):
     monkeypatch.setattr(watch, "deliver_targets", send)
     monkeypatch.setattr(watch, "recover_target", lambda target, text, **kwargs: send([target], text, **kwargs)[0])
     watch.run_desktop_watch(watch.WatchConfig(desktop_targets=(a,), grace_seconds=0), Stop())
-    assert calls == ["继续"]
+    assert calls == ["Continue"]
 
 
 @pytest.mark.parametrize("error", ["request-timeout", "client-disconnected"])

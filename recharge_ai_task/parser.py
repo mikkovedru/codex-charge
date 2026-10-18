@@ -13,31 +13,25 @@ LIMIT_MARKERS = (
     "you’ve hit your usage limit",
     "usage limit",
     "rate limit",
-    "限额",
     "usage limit exceeded",
     "rate_limit_reached",
 )
 
 LIMIT_AT_RE = re.compile(
-    r"(?:you[’']ve hit your usage limit|usage limit|rate limit|限额).*?"
-    r"(?:try again|重试|恢复)\s+(?:at|在)\s+([^\r\n.]+)",
+    r"(?:you[’']ve hit your usage limit|usage limit|rate limit).*?"
+    r"try again\s+at\s+([^\r\n.]+)",
     re.IGNORECASE | re.DOTALL,
 )
 
 LIMIT_IN_RE = re.compile(
-    r"(?:you[’']ve hit your usage limit|usage limit|rate limit|限额).*?"
-    r"(?:try again|重试|恢复)\s+(?:in|还有|约)\s+([^\r\n.]+)",
-    re.IGNORECASE | re.DOTALL,
-)
-
-LIMIT_IN_CN_RE = re.compile(
-    r"(?:usage limit|rate limit|限额).*?(?:还有|约)\s*([0-9][^\r\n.]*?(?:小时|分钟|分|秒|天|周)[^\r\n.]*)",
+    r"(?:you[’']ve hit your usage limit|usage limit|rate limit).*?"
+    r"try again\s+in\s+([^\r\n.]+)",
     re.IGNORECASE | re.DOTALL,
 )
 
 DURATION_RE = re.compile(
     r"(\d+)\s*"
-    r"(weeks?|w|days?|d|hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s|小时|分钟|分|秒|天|周)",
+    r"(weeks?|w|days?|d|hours?|hrs?|hr|h|minutes?|mins?|min|m|seconds?|secs?|sec|s)",
     re.IGNORECASE,
 )
 
@@ -55,15 +49,15 @@ def parse_duration(text: str) -> dt.timedelta:
         found = True
         n = int(amount)
         unit = unit.lower()
-        if unit in {"w", "week", "weeks", "周"}:
+        if unit in {"w", "week", "weeks"}:
             total += dt.timedelta(weeks=n)
-        elif unit in {"d", "day", "days", "天"}:
+        elif unit in {"d", "day", "days"}:
             total += dt.timedelta(days=n)
-        elif unit in {"h", "hr", "hrs", "hour", "hours", "小时"}:
+        elif unit in {"h", "hr", "hrs", "hour", "hours"}:
             total += dt.timedelta(hours=n)
-        elif unit in {"m", "min", "mins", "minute", "minutes", "分钟", "分"}:
+        elif unit in {"m", "min", "mins", "minute", "minutes"}:
             total += dt.timedelta(minutes=n)
-        elif unit in {"s", "sec", "secs", "second", "seconds", "秒"}:
+        elif unit in {"s", "sec", "secs", "second", "seconds"}:
             total += dt.timedelta(seconds=n)
     if not found:
         raise ValueError(f"could not parse duration: {text!r}")
@@ -126,12 +120,6 @@ class LimitWatcher:
             return reset_at, raw
 
         match = LIMIT_IN_RE.search(self._buf)
-        if match:
-            raw = match.group(1).strip().rstrip(" .)")
-            reset_at = int((now + parse_duration(raw)).timestamp())
-            return reset_at, raw
-
-        match = LIMIT_IN_CN_RE.search(self._buf)
         if match:
             raw = match.group(1).strip().rstrip(" .)")
             reset_at = int((now + parse_duration(raw)).timestamp())

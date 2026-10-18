@@ -83,13 +83,12 @@ def test_normal_mode_auto_continue(monkeypatch) -> None:
     config = WrapperConfig(
         codex_path="codex",
         goal_mode=False,
-        continue_prompt="继续",
         grace_seconds=1,
         enter_presses=1,
         key_delay=0.01,
     )
     assert run_wrapper(config) == 0
-    assert "继续" in "".join(fake.written)
+    assert "Continue" in "".join(fake.written)
 
 
 def test_real_codex_spawn_smoke() -> None:

@@ -18,10 +18,6 @@ class SettingsDialog(Gtk.Dialog):
         config = AppConfig.load()
         grid = Gtk.Grid(column_spacing=12, row_spacing=12, margin=18)
         self.get_content_area().add(grid)
-        self.language = Gtk.ComboBoxText()
-        for key, label in (("en", "English"), ("zh", "中文")):
-            self.language.append(key, label)
-        self.language.set_active_id(config.language)
         self.mode = Gtk.ComboBoxText()
         for key, label in (("desktop", "Desktop watch"), ("cli", "Codex CLI")):
             self.mode.append(key, label)
@@ -34,25 +30,24 @@ class SettingsDialog(Gtk.Dialog):
         self.poll.set_value(config.poll_seconds)
         self.autostart = Gtk.CheckButton(label="Run the tray when I log in")
         self.autostart.set_active(is_autostart_enabled())
-        for index, (name, widget) in enumerate((("Language", self.language), ("Default mode", self.mode),
+        for index, (name, widget) in enumerate((("Default mode", self.mode),
             ("Codex CLI path", self.path), ("CLI arguments", self.args),
             ("Reset grace (seconds)", self.grace), ("Quota polling (seconds)", self.poll))):
             grid.attach(Gtk.Label(label=name, xalign=0), 0, index, 1, 1)
             widget.set_hexpand(True)
             grid.attach(widget, 1, index, 1, 1)
-        grid.attach(self.autostart, 0, 6, 2, 1)
+        grid.attach(self.autostart, 0, 5, 2, 1)
         note = Gtk.Label(label="Prompt text and each recipient’s Prompt / Goal choices are in the main window.\nStartup launches the tray; Desktop watch starts when you turn it on.\nChanges to an active watch apply automatically.", xalign=0)
         note.set_line_wrap(True)
-        grid.attach(note, 0, 7, 2, 1)
+        grid.attach(note, 0, 6, 2, 1)
         self.error = Gtk.Label(xalign=0)
         self.error.set_line_wrap(True)
-        grid.attach(self.error, 0, 8, 2, 1)
+        grid.attach(self.error, 0, 7, 2, 1)
         self.show_all()
 
     def save_settings(self):
         args = shlex.split(self.args.get_text())
         config = AppConfig.load()
-        config.language = self.language.get_active_id()
         config.mode = self.mode.get_active_id()
         config.codex_path = self.path.get_text().strip() or None
         config.codex_args = args or None

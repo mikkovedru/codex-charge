@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .config import AppConfig, config_path
 from .configure import run_configure
-from .i18n import init_locale_from_env, t
+from .i18n import t
 from .quota import discover_codex, fetch_quota, format_quota
 from .watch import WatchConfig, run_desktop_watch
 from .wrapper import WrapperConfig, run_wrapper
@@ -32,7 +32,7 @@ def _build_run_parser(prog: str = "recharge-ai-task") -> argparse.ArgumentParser
         dest="continue_prompt",
         default=None,
         metavar="TEXT",
-        help='Text to send after reset (default from config or "继续")',
+        help='Text to send after reset (default from config or "Continue")',
     )
     parser.add_argument("--grace", type=int, default=None, metavar="SECONDS")
     parser.add_argument("--enter-presses", type=int, default=1, metavar="N")
@@ -52,7 +52,6 @@ def _normalize_codex_args(args: list[str]) -> list[str]:
 
 def _load_user_config() -> AppConfig:
     config = AppConfig.load()
-    config.apply_locale()
     return config
 
 
@@ -69,7 +68,6 @@ def _cmd_quota(codex_path: str | None) -> int:
 
 def _cmd_configure(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="recharge-ai-task configure")
-    parser.add_argument("--lang", choices=["en", "zh"])
     parser.add_argument("--mode", choices=["cli", "desktop"])
     parser.add_argument("--goal", action="store_true")
     parser.add_argument("--no-goal", action="store_true")
@@ -78,8 +76,6 @@ def _cmd_configure(argv: list[str]) -> int:
     ns = parser.parse_args(argv)
 
     overrides = {}
-    if ns.lang:
-        overrides["language"] = ns.lang
     if ns.mode:
         overrides["mode"] = ns.mode
     if ns.goal:
@@ -191,7 +187,6 @@ def _cmd_run(argv: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    init_locale_from_env()
 
     if argv and argv[0] in {"--help", "-h", "help"}:
         parser = _build_run_parser()

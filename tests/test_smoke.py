@@ -29,7 +29,7 @@ def test_quota_api() -> None:
     codex = discover_codex()
     quota = fetch_quota(codex)
     text = format_quota(quota)
-    assert "Codex" in text or "额度" in text
+    assert "Codex" in text
     assert "%" in text
     print(text)
 

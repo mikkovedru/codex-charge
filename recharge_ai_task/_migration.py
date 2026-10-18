@@ -11,6 +11,8 @@ import tempfile
 LEGACY_CONFIG_DIRECTORY = ".codex-charge"
 LEGACY_ENVIRONMENT_PREFIX = "CODEX_CHARGE"
 LEGACY_TRAY_NAME = "codex-charge-tray"
+# The exact shipped default from versions before the English-only interface.
+LEGACY_CONTINUE_PROMPT = "\u7ee7\u7eed"
 
 
 def environment_value(suffix: str) -> str | None:

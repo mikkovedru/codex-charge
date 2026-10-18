@@ -51,7 +51,7 @@ def run_snapshots(monkeypatch, snapshots, *, selected=(A,), grace=0, outcomes=()
 
 def test_desktop_watch_sends_after_confirmed_reset(monkeypatch):
     sent, _ = run_snapshots(monkeypatch, [BLOCKED, AVAILABLE, AVAILABLE], goal=True)
-    assert [(target, text) for target, text, _ in sent] == [("a", "继续")]
+    assert [(target, text) for target, text, _ in sent] == [("a", "Continue")]
 
 
 def test_no_signal_while_api_still_reports_exhaustion(monkeypatch):
@@ -72,7 +72,7 @@ def test_failed_target_retries_after_quota_becomes_available(monkeypatch):
     sent, _ = run_snapshots(monkeypatch, [BLOCKED, AVAILABLE, AVAILABLE, AVAILABLE],
         selected=(A, B), outcomes=[(True, True), (False, True), (True, True)], goal=True)
     assert [(target, text) for target, text, _ in sent] == [
-        ("a", "继续"), ("b", "继续"), ("b", "继续")]
+        ("a", "Continue"), ("b", "Continue"), ("b", "Continue")]
 
 
 def test_uncertain_target_is_not_repeated_after_reset(monkeypatch):
@@ -89,7 +89,7 @@ def test_new_reset_sends_once_again(monkeypatch):
     blocked_again = replace(BLOCKED, primary=RateWindow(100, 300, 200))
     available_again = replace(AVAILABLE, primary=RateWindow(0, 300, 300))
     sent, _ = run_snapshots(monkeypatch, [BLOCKED, AVAILABLE, AVAILABLE, blocked_again, available_again], goal=True)
-    assert [(target, text) for target, text, _ in sent] == [("a", "继续"), ("a", "继续")]
+    assert [(target, text) for target, text, _ in sent] == [("a", "Continue"), ("a", "Continue")]
 
 
 def test_grace_period_is_retained_after_api_recovers(monkeypatch):
@@ -134,7 +134,7 @@ def test_each_reset_uses_native_recovery(monkeypatch):
     blocked_again = replace(BLOCKED, primary=RateWindow(100, 300, 200))
     available_again = replace(AVAILABLE, primary=RateWindow(0, 300, 300))
     sent, _ = run_snapshots(monkeypatch, [BLOCKED, AVAILABLE, AVAILABLE, blocked_again, available_again], goal=True, recovery_calls=calls)
-    assert [text for _, text, _ in sent] == ["继续", "继续"]
+    assert [text for _, text, _ in sent] == ["Continue", "Continue"]
     assert calls == ["a", "a"]
 
 

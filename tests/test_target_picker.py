@@ -305,6 +305,8 @@ def check():
         assert not window.dirty()
         from recharge_ai_task.settings_ui import SettingsDialog
         dialog = SettingsDialog(window)
+        assert not hasattr(dialog, "language")
+        assert not any(isinstance(widget, Gtk.Label) and widget.get_text() == "Language" for widget in dialog.get_content_area().get_children()[0].get_children())
         dialog.grace.set_value(37)
         dialog.poll.set_value(9)
         dialog.autostart.set_active(True)

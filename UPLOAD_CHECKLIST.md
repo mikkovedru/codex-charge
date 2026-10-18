@@ -1,97 +1,58 @@
-# 上传文件清单 / Upload checklist
+# Upload checklist
 
 <p align="center">
   <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
 </p>
 
-仓库：[Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task)
+Repository: [Recharge AI-task](https://github.com/mikkovedru/recharge-ai-task)
 
-以下文件**需要**提交到 GitHub；其余目录已被 `.gitignore` 排除。
+## Source files
 
-## ✅ 需要上传（共 38 项）
+Commit project source, English documentation, tests, build scripts and workflows.
+Include the resized artwork in `recharge_ai_task/assets/` and `docs/assets/`.
+The English message catalog is `recharge_ai_task/locales/en.json`.
+See [OPEN_SOURCE.md](OPEN_SOURCE.md) for the source layout and
+[docs/branding.md](docs/branding.md) for artwork sizes.
 
-```
-.github/workflows/ci.yml
+## Keep local files out of Git
 
-.gitignore
-LICENSE
-MANIFEST.in
-pyproject.toml
-requirements.txt
+| Path | Purpose |
+|------|---------|
+| `dist/` | Built executables and packages; upload release archives as attachments |
+| `build/` | PyInstaller intermediate files |
+| `*.egg-info/` | Local Python package metadata |
+| `.pytest_cache/`, `.venv/` | Test cache and development environment |
+| Generated root-level `*.spec` files | Temporary PyInstaller build specifications |
+| Original input artwork | Use converted project assets instead |
+| `~/.recharge-ai-task/` | Private user settings |
 
-README.md
-README_zh.md
-CONTRIBUTING.md
-RELEASE.md
-OPEN_SOURCE.md
-UPLOAD_CHECKLIST.md
-docs/RELEASE_NOTES_v1.1.0.md
+Keep `AGENTS.md` local as instructed by the repository owner.
+Review `git status` and the staged diff before committing to avoid including
+private settings or unrelated local files.
 
-recharge_ai_task/__init__.py
-recharge_ai_task/__main__.py
-recharge_ai_task/autostart.py
-recharge_ai_task/cli.py
-recharge_ai_task/config.py
-recharge_ai_task/configure.py
-recharge_ai_task/desktop_input.py
-recharge_ai_task/i18n.py
-recharge_ai_task/parser.py
-recharge_ai_task/pty_backend.py
-recharge_ai_task/pty_unix.py
-recharge_ai_task/pty_win.py
-recharge_ai_task/quota.py
-recharge_ai_task/tray.py
-recharge_ai_task/watch.py
-recharge_ai_task/wrapper.py
-recharge_ai_task/locales/en.json
-recharge_ai_task/locales/zh.json
+## Git remotes and publishing
 
-scripts/build_windows.ps1
-scripts/build_linux.sh
-scripts/fake_codex.py
+`origin` is the Recharge AI-task repository. `upstream` is the original
+Autumnpoem repository. Development uses `master`.
+For a checkout that already has both remotes:
 
-tests/test_e2e_wrapper.py
-tests/test_i18n.py
-tests/test_parser.py
-tests/test_smoke.py
-tests/test_watch.py
-```
-
-## ❌ 不要上传
-
-| 路径 | 原因 |
-|------|------|
-| `dist/` | 编译产物，放 GitHub **Release** 附件 |
-| `build/` | PyInstaller 中间文件 |
-| `*.egg-info/` | pip 本地安装缓存 |
-| `.pytest_cache/` | 测试缓存 |
-| `recharge-ai-task-tray.spec` | PyInstaller 临时 spec（已 gitignore） |
-| `scripts/debug_*.py` | 本地调试脚本（可选提交，默认不上传） |
-| `~/.recharge-ai-task/` | 用户本地配置 |
-
-## 首次推送命令
-
-在项目根目录 `D:\recharge-ai-task` 执行：
-
-```powershell
-git remote add origin https://github.com/mikkovedru/recharge-ai-task.git
-git remote add upstream https://github.com/Autumnpoem/codex-autocontinue.git
+```bash
+git remote set-url origin https://github.com/mikkovedru/recharge-ai-task.git
+git remote set-url upstream https://github.com/Autumnpoem/codex-autocontinue.git
 git config remote.pushDefault origin
-git add .github .gitignore LICENSE MANIFEST.in pyproject.toml requirements.txt
-git add README.md README_zh.md CONTRIBUTING.md RELEASE.md OPEN_SOURCE.md UPLOAD_CHECKLIST.md
-git add docs/RELEASE_NOTES_v1.1.0.md
-git add recharge_ai_task scripts/build_windows.ps1 scripts/build_linux.sh scripts/fake_codex.py
-git add tests
-git commit -m "Initial release: recharge-ai-task v1.1.0 — auto-continue Codex after quota resets"
-git branch -M master
+```
+
+Push only when you intend to publish the reviewed commits:
+
+```bash
 git push -u origin master
 ```
 
-## Release 附件（不要进 git）
+## Release attachments
 
-打 tag `v1.1.0` 后，在 Release 页上传：
+- `recharge-ai-task-windows-x86_64.zip`: CLI and tray executables.
+- `recharge-ai-task-linux-x86_64.tar.gz`: CLI, GUI launcher and tray executables.
 
-- `recharge-ai-task-windows-x86_64.zip`（含 `recharge-ai-task.exe` + `recharge-ai-task-tray.exe`）
-- `recharge-ai-task-linux-x86_64.tar.gz`（含 `recharge-ai-task` + `recharge-ai-task-tray`）
-
-构建方法见 [RELEASE.md](RELEASE.md)。
+Keep the executables in each archive together. Build and tag releases using
+[RELEASE.md](RELEASE.md). Python wheels and source distributions include the
+English message catalog and converted program artwork.

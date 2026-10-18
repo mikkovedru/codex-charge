@@ -153,7 +153,7 @@ The entry launches the tray, without automatically starting Desktop watch.
 Startup entries include `--autostart` so future launches can identify their
 origin; enabled older entries are migrated when the updated tray starts.
 
-**Settings…** opens a GTK editor for language, default mode, Codex CLI path and
+**Settings…** opens a GTK editor for default mode, Codex CLI path and
 arguments, reset grace, polling interval, and startup registration. The tray's
 Settings menu opens this editor too. Prompt text and per-recipient signal choices remain visible
 in the main window. Saved settings and recipients automatically restart an active watch after a

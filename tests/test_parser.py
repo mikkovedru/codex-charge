@@ -19,8 +19,10 @@ def test_limit_in_message() -> None:
     assert source in ("terminal message", "quota API")
 
 
-def test_chinese_limit_message() -> None:
+def test_limit_with_short_duration_units() -> None:
     w = LimitWatcher()
-    msg = "已达到 usage limit，请 还有 2 小时 30 分钟 后重试"
+    msg = "Usage limit. Try again in 2 hrs 30 min."
     result = w.feed(msg)
     assert result is not None
+    reset_at, raw = result
+    assert abs(reset_at - (int(time.time()) + 9000)) <= 1

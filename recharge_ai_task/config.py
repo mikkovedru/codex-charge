@@ -9,12 +9,10 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Literal
 
-from ._migration import environment_value, import_settings
+from ._migration import LEGACY_CONTINUE_PROMPT, environment_value, import_settings
 from .desktop_input import DEFAULT_WINDOW_TITLES
-from .i18n import normalize_locale, set_locale
 
 Mode = Literal["cli", "desktop"]
-Language = Literal["en", "zh"]
 
 
 def config_dir() -> Path:
@@ -32,11 +30,10 @@ def config_path() -> Path:
 
 @dataclass
 class AppConfig:
-    language: Language = "en"
     mode: Mode = "cli"
     goal_mode: bool = True
     grace_seconds: int = 60
-    continue_prompt: str = "继续"
+    continue_prompt: str = "Continue"
     autostart: bool = False
     codex_path: str | None = None
     codex_args: list[str] | None = None
@@ -50,12 +47,14 @@ class AppConfig:
         if not path.exists():
             return cls()
         data = json.loads(path.read_text(encoding="utf-8"))
+        prompt = str(data.get("continue_prompt", "Continue"))
+        if prompt == LEGACY_CONTINUE_PROMPT:
+            prompt = "Continue"
         return cls(
-            language=normalize_locale(data.get("language", "en")),  # type: ignore[arg-type]
             mode=data.get("mode", "cli"),
             goal_mode=bool(data.get("goal_mode", True)),
             grace_seconds=int(data.get("grace_seconds", 60)),
-            continue_prompt=str(data.get("continue_prompt", "继续")),
+            continue_prompt=prompt,
             autostart=bool(data.get("autostart", False)),
             codex_path=data.get("codex_path"),
             codex_args=data.get("codex_args"),
@@ -76,10 +75,6 @@ class AppConfig:
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
-        set_locale(self.language)
-
-    def apply_locale(self) -> None:
-        set_locale(self.language)
 
     def window_titles(self) -> tuple[str, ...]:
         if self.desktop_window_titles:

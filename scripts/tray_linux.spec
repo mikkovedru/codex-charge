@@ -13,6 +13,6 @@ a = Analysis([str(root / "scripts/entry_tray.py")], pathex=[str(root)],
              # cairo.get_include() uses pkg_resources only when compiling extensions.
              # Do not pull Mint's distro setuptools into the frozen runtime.
              excludes=["numpy", "pytest", "pkg_resources"],
-             hooksconfig={"gi": {"icons": [], "themes": [], "languages": ["en", "zh"]}})
+             hooksconfig={"gi": {"icons": [], "themes": [], "languages": ["en"]}})
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], name="recharge-ai-task-tray", console=False)

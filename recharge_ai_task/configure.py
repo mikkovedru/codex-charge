@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import sys
-
 from .config import AppConfig, config_path
-from .i18n import choose_language_interactive, normalize_locale, set_locale, t
+from .i18n import t
 
 
 def _prompt(text: str, default: str = "") -> str:
@@ -22,7 +20,7 @@ def _prompt_yes_no(text: str, default_yes: bool = True) -> bool:
     value = _prompt(text, default).lower()
     if not value:
         return default_yes
-    return value in {"y", "yes", "是", "1", "true"}
+    return value in {"y", "yes", "1", "true"}
 
 
 def run_configure(*, non_interactive: dict | None = None) -> AppConfig:
@@ -33,16 +31,10 @@ def run_configure(*, non_interactive: dict | None = None) -> AppConfig:
             if hasattr(config, key):
                 setattr(config, key, value)
         config.save()
-        config.apply_locale()
         print(t("configure.saved", path=config_path()))
         return config
 
-    lang = normalize_locale(choose_language_interactive())
-    set_locale(lang)
-
     print(t("configure.welcome"))
-    lang = normalize_locale(_prompt(t("configure.language_prompt"), lang))
-    set_locale(lang)
 
     mode = _prompt(t("configure.mode_prompt"), config.mode).lower()
     if mode not in {"cli", "desktop"}:
@@ -57,13 +49,11 @@ def run_configure(*, non_interactive: dict | None = None) -> AppConfig:
     except ValueError:
         grace_seconds = config.grace_seconds
 
-    config.language = lang  # type: ignore[assignment]
     config.mode = mode  # type: ignore[assignment]
     config.goal_mode = goal_mode
     config.grace_seconds = grace_seconds
     config.continue_prompt = continue_prompt
     config.save()
-    config.apply_locale()
 
     print(t("configure.saved", path=config_path()))
     print(f"  mode: {t('mode.cli') if config.mode == 'cli' else t('mode.desktop')}")

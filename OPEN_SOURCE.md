@@ -11,21 +11,20 @@ This document describes what ships in the public **MIT** repository and release 
 ```
 recharge-ai-task/
 ├── LICENSE                 # MIT
-├── README.md               # Bilingual docs (EN + 中文, anchor switch)
-├── README_zh.md            # Redirect to README.md#中文
+├── README.md               # English documentation
 ├── RELEASE.md              # x86_64 release checklist
 ├── CONTRIBUTING.md
 ├── MANIFEST.in
 ├── pyproject.toml          # pip package metadata
 ├── recharge_ai_task/           # Main library
 │   ├── cli.py              # CLI entry
-│   ├── configure.py        # First-run: language + mode
+│   ├── configure.py        # First-run: mode and defaults
 │   ├── wrapper.py          # CLI mode (PTY)
 │   ├── watch.py            # Desktop app mode
 │   ├── desktop_input.py    # Window focus + keystrokes
 │   ├── quota.py            # codex app-server quota API
 │   ├── parser.py           # Terminal limit message parser
-│   ├── i18n.py + locales/  # en / zh
+│   ├── i18n.py + locales/  # English messages
 │   ├── tray.py             # System tray (Win + Linux)
 │   ├── pty_win.py          # Windows PTY (pywinpty)
 │   ├── pty_unix.py         # Linux PTY

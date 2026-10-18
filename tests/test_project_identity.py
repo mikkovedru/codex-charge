@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from recharge_ai_task import _migration, autostart, config, i18n
+from recharge_ai_task import _migration, autostart, config
 
 
 def legacy_home(tmp_path, monkeypatch):
@@ -27,13 +27,12 @@ def test_first_launch_imports_every_preference_and_preserves_original(tmp_path, 
     source = legacy_home(tmp_path,monkeypatch)
     original = source.read_bytes()
     loaded = config.AppConfig.load()
-    assert loaded.language == 'zh' and loaded.autostart
+    assert not hasattr(loaded, 'language') and loaded.autostart
     assert loaded.continue_prompt == 'First line\n第二行'
     assert loaded.targets()[0].signal_actions() == (False,True)
     destination = tmp_path / '.recharge-ai-task' / 'config.json'
     assert destination.read_bytes() == source.read_bytes() == original
     if config.os.name != 'nt': assert stat.S_IMODE(destination.stat().st_mode) == 0o600
-    i18n.set_locale('en')
 
 
 def test_concurrent_first_launch_publishes_one_complete_configuration(tmp_path, monkeypatch):
@@ -68,11 +67,7 @@ def test_new_environment_variables_override_upgrade_fallbacks(tmp_path, monkeypa
     assert config.config_dir() == tmp_path/'old-explicit'
     monkeypatch.setenv('RECHARGE_AI_TASK_CONFIG_DIR',str(tmp_path/'new-explicit'))
     assert config.config_dir() == tmp_path/'new-explicit'
-    monkeypatch.setenv(old+'_LANG','zh')
-    monkeypatch.delenv('RECHARGE_AI_TASK_LANG',raising=False)
-    assert i18n.init_locale_from_env() == 'zh'
-    monkeypatch.setenv('RECHARGE_AI_TASK_LANG','en')
-    assert i18n.init_locale_from_env() == 'en'
+
 
 
 @pytest.mark.parametrize('platform,suffix',[('linux','.desktop'),('win32','.bat')])

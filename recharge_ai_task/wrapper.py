@@ -17,7 +17,7 @@ from .quota import discover_codex, fetch_quota, looks_like_codex_cli
 class WrapperConfig:
     codex_path: str | None = None
     codex_args: list[str] | None = None
-    continue_prompt: str = "继续"
+    continue_prompt: str = "Continue"
     goal_mode: bool = False
     grace_seconds: int = 60
     enter_presses: int = 1

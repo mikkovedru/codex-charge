@@ -31,7 +31,7 @@ class WatchState:
 @dataclass
 class WatchConfig:
     codex_path: str | None = None
-    continue_prompt: str = "继续"
+    continue_prompt: str = "Continue"
     goal_mode: bool = False
     grace_seconds: int = 60
     enter_presses: int = 1

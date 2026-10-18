@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "recharge-ai-task"
 version = "1.1.1"
-description = "Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — bilingual, Windows & Ubuntu x86_64"
+description = "Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — Windows & Ubuntu x86_64"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

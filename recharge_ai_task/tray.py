@@ -74,7 +74,6 @@ class TrayApp:
         self._restart_revision = 0
         self._queued_watch_settings = None
         self._watch_pause_reason = ""
-        self.config.apply_locale()
         self._icon: pystray.Icon | None = None
         self._proc: subprocess.Popen[bytes] | None = None
         self._watch_stop = StopEvent()
@@ -121,7 +120,7 @@ class TrayApp:
         args.append("--goal" if goal else "--no-goal")
         if self.config.grace_seconds != 60:
             args.extend(["--grace", str(self.config.grace_seconds)])
-        if self.config.continue_prompt != "继续":
+        if self.config.continue_prompt != "Continue":
             args.extend(["--continue", self.config.continue_prompt])
         if self.config.codex_path:
             args.extend(["--codex", self.config.codex_path])
@@ -286,7 +285,6 @@ class TrayApp:
             flags = CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
             subprocess.run(_console_command([*_resolve_cli_exe(), "configure"]), creationflags=flags, check=True)
             self.config = AppConfig.load()
-            self.config.apply_locale()
             if self._icon is not None:
                 self._icon.menu = self._build_menu()
                 self._icon.update_menu()
@@ -379,7 +377,6 @@ class TrayApp:
                 self._watch_stop.set()
         elif command == "reload":
             self.config = AppConfig.load()
-            self.config.apply_locale()
             if self._icon:
                 self._icon.menu = self._build_menu()
                 self._icon.update_menu()
@@ -419,7 +416,7 @@ class TrayApp:
                 t("app.name"),
                 menu=self._build_menu(),
             )
-            _log.info("tray started locale=%s mode=%s backend=%s", self.config.language, self.config.mode, type(self._icon).__name__)
+            _log.info("tray started mode=%s backend=%s", self.config.mode, type(self._icon).__name__)
             if show_gui:
                 self.open_targets(settings=settings)
             self._icon.run()

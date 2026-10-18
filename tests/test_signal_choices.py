@@ -44,8 +44,8 @@ def test_watch_uses_each_recipient_actions_and_retries_only_failed_target(monkey
         def is_set(self): return len(waits) >= 3
         def wait(self, seconds): waits.append(seconds)
     watch.run_desktop_watch(watch.WatchConfig(desktop_targets=targets, goal_mode=False, grace_seconds=0), Stop())
-    assert calls == [('prompt', (True, False), '继续', False), ('goal', (False, True), '继续', False),
-                     ('both', (True, True), '继续', False), ('both', (True, True), '继续', False)]
+    assert calls == [('prompt', (True, False), 'Continue', False), ('goal', (False, True), 'Continue', False),
+                     ('both', (True, True), 'Continue', False), ('both', (True, True), 'Continue', False)]
 
 
 def test_startup_only_checks_recipients_with_goal_enabled(monkeypatch):

@@ -3,7 +3,6 @@
   "app.status.idle": "Idle",
   "app.status.running": "Running",
   "app.status.waiting": "Waiting for quota reset",
-
   "cli.description": "Auto-continue Codex after usage limits reset",
   "cli.quota_title": "Codex Quota",
   "cli.not_found": "Could not find codex executable. Install Codex CLI or pass --codex PATH.",
@@ -12,30 +11,24 @@
   "cli.auto_continue_sent": "auto-continue sent",
   "cli.exited_before_continue": "codex exited before auto-continue",
   "cli.quota_fallback_failed": "quota API fallback failed: {error}",
-
   "quota.plan": "Codex Quota ({plan})",
   "quota.short": "short",
   "quota.long": "long",
   "quota.used": "{label}: {percent:.0f}% used (resets in {remaining})",
   "quota.blocked": "Blocked: next reset at {time} (+ grace)",
-
   "configure.welcome": "Welcome to Recharge AI-task setup.",
-  "configure.language_prompt": "Language / 语言 [en/zh]",
   "configure.mode_prompt": "Target [cli/desktop] (CLI terminal or ChatGPT Codex desktop app)",
   "configure.goal_prompt": "Enable goal recovery (desktop: native quota-goal recovery; CLI: first /goal resume)? [Y/n]",
   "configure.grace_prompt": "Grace seconds after reset [60]",
-  "configure.continue_prompt": "Continue text / 继续文本 [继续]",
+  "configure.continue_prompt": "Continue text",
   "configure.saved": "Configuration saved to {path}",
-
   "mode.cli": "Codex CLI (terminal)",
   "mode.desktop": "ChatGPT Codex desktop app",
-
   "watch.polling": "polling quota ({percent:.0f}% used)",
   "watch.blocked": "quota exhausted, will send {prompt!r} at {time}",
   "watch.sent_desktop": "sent to desktop window: {prompt!r}",
   "watch.window_not_found": "Codex desktop window not found. Open the app or set desktop_window_titles in config.",
   "watch.started": "desktop watch started",
-
   "tray.start_goal": "Start Codex (Goal)",
   "tray.start_normal": "Start Codex (Normal)",
   "tray.start_desktop": "Start Desktop Watch",
@@ -45,8 +38,7 @@
   "tray.configure": "Settings…",
   "tray.exit": "Exit",
   "tray.quota_unavailable": "Quota unavailable: {error}",
-
   "help.cli_mode": "Wrap Codex CLI in a PTY and auto-continue after limits.",
   "help.desktop_mode": "Watch quota API and auto-type into the ChatGPT Codex desktop app.",
-  "help.configure": "Interactive setup (language, mode, defaults)."
+  "help.configure": "Interactive setup (mode and defaults)."
 }

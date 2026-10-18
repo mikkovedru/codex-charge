@@ -36,7 +36,7 @@ to `origin`.
 1. Keep changes focused; match existing style.
 2. Add or update tests for behavior changes.
 3. Run `pytest tests/ -v` before submitting.
-4. Update `README.md` / `README_zh.md` if user-facing behavior changes.
+4. Update `README.md` if user-facing behavior changes.
 
 ## Release targets
 
