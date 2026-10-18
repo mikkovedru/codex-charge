@@ -10,7 +10,9 @@ def test_real_cinnamon_icon():
     env = dict(os.environ)
     env.pop("PYSTRAY_BACKEND", None)
     result = subprocess.run([sys.executable, "-c", r"""
+from codex_charge import tray
 from codex_charge.tray import TrayApp
+tray.is_autostart_enabled = lambda: False
 from gi.repository import GLib, Gtk
 app = TrayApp()
 errors = []

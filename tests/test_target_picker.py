@@ -38,6 +38,9 @@ beta = Target("thread", "beta", "Same title", instance="profile", deeplink="code
 target_ui.discover_targets = lambda: Inventory([alpha, beta])
 AppConfig().save()
 window = target_ui.TargetPicker()
+# These checks drive widgets directly and must not consume desktop typing.
+window.set_accept_focus(False)
+window.set_focus_on_map(False)
 window.show_all()
 errors = []
 def idle():
