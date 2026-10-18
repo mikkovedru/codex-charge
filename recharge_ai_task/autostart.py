@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
 from ._migration import LEGACY_TRAY_NAME
+from .branding import asset_path
 
 _BAT_NAME = "recharge-ai-task-tray.bat"
 _DESKTOP_NAME = "recharge-ai-task-tray.desktop"
@@ -68,6 +70,10 @@ def set_autostart(enabled: bool) -> None:
         if sys.platform == "win32":
             target.write_text(f"@echo off\r\nstart \"\" {_tray_command()}\r\n", encoding="utf-8")
         else:
+            from .config import config_dir
+            icon = config_dir() / "icons" / "recharge-ai-task.png"
+            icon.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(asset_path("icon-256.png"), icon)
             target.write_text(
                 "\n".join(
                     [
@@ -75,6 +81,7 @@ def set_autostart(enabled: bool) -> None:
                         "Type=Application",
                         "Name=Recharge AI-task",
                         f"Exec={_tray_command()}",
+                        f"Icon={icon}",
                         "X-GNOME-Autostart-enabled=true",
                     ]
                 )
@@ -91,5 +98,7 @@ def set_autostart(enabled: bool) -> None:
 def sync_autostart(enabled: bool) -> None:
     current = is_autostart_enabled()
     target = autostart_target()
-    if current != enabled or target is not None and _legacy_target(target).exists():
+    missing_icon = (enabled and target is not None and target.suffix == ".desktop"
+                    and target.exists() and "Icon=" not in target.read_text())
+    if current != enabled or missing_icon or target is not None and _legacy_target(target).exists():
         set_autostart(enabled)

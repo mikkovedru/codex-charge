@@ -54,6 +54,8 @@ def check():
         return True
     try:
         assert window.get_title() == "Recharge AI-task"
+        assert window.logo.get_pixbuf().get_width() == 128
+        assert {icon.get_width() for icon in window.get_icon_list()} == {16,24,32,48,64,128,256}
         assert not any(isinstance(child, Gtk.Label) and "Choose chats by ID" in child.get_text() for child in window.get_child().get_children())
         assert not hasattr(window, "save_state")
         assert "42%" in window.quota_label.get_text()

@@ -1,5 +1,9 @@
 # Codex target discovery and delivery
 
+<p align="center">
+  <img src="assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 The selector distinguishes **desktop windows** (X11 window ID + process ID)
 from **Codex chats** (stable thread ID + Codex profile). Titles are labels, not
 identities: two chats can have the same name, and several chats can use the same

@@ -28,8 +28,8 @@ def check(running=False):
             image = window.get_image(0, 0, geometry.width, geometry.height, 2, 0xffffffff)
             from PIL import Image
             pixels = list(Image.frombytes('RGB', (geometry.width, geometry.height), image.data, 'raw', 'BGRX').getdata())
-            assert any(min(pixel) > 220 for pixel in pixels), 'White half was not painted'
-            assert any(max(pixel) < 30 for pixel in pixels), 'Black half was not painted'
+            assert any(min(pixel) > 220 for pixel in pixels), 'Opaque white logo background was not painted'
+            assert any(max(pixel) < 30 for pixel in pixels), 'Dark logo detail was not painted'
             if running:
                 assert any(pixel[0] < 80 and pixel[1] > 150 and pixel[2] < 180 for pixel in pixels), 'Running strip did not update'
             else:

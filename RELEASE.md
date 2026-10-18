@@ -1,5 +1,9 @@
 # Release checklist (x86_64)
 
+<p align="center">
+  <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 Target: **Windows x86_64** + **Ubuntu x86_64** only.
 
 Repository: https://github.com/mikkovedru/recharge-ai-task

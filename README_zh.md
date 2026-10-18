@@ -1,6 +1,10 @@
 # Recharge AI-task
 
 <p align="center">
+  <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
+<p align="center">
   完整文档已合并至主 README，请使用顶部语言切换。
 </p>
 

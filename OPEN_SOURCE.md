@@ -1,5 +1,9 @@
 # Open-source release layout
 
+<p align="center">
+  <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 This document describes what ships in the public **MIT** repository and release artifacts.
 
 ## Repository (source)

@@ -40,7 +40,7 @@ where = ["."]
 include = ["recharge_ai_task*"]
 
 [tool.setuptools.package-data]
-recharge_ai_task = ["locales/*.json"]
+recharge_ai_task = ["locales/*.json", "assets/*.png", "assets/*.ico"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

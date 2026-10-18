@@ -1,6 +1,10 @@
 # Recharge AI-task
 
 <p align="center">
+  <img src="docs/assets/logo-lockup.png" width="360" alt="Recharge AI-task logo">
+</p>
+
+<p align="center">
   <strong>Language / 语言</strong>：
   <a href="#english"><strong>English</strong></a> · <a href="#中文"><strong>中文</strong></a>
 </p>
@@ -190,7 +194,8 @@ matching has been replaced by explicit recipients.
 | Run at startup | Toggle autostart |
 | Exit | Stop and quit tray |
 
-Icon: **gray** = idle, **green** = running.
+The tray keeps the blue 5h recharge logo in both states. Its bottom strip is
+**yellow** when idle and **green** when running; the tooltip also reports the state.
 
 #### Autostart
 
@@ -689,7 +694,7 @@ Development and releases use the `master` branch.
 
 ## Linux Mint Cinnamon
 
-The tray uses an opaque black/white R+ image. When Cinnamon's native XApp status applet is active, it uses XApp; with legacy or collapsible trays it uses an opaque XEmbed drawing surface at the actual allocated size, avoiding GTK StatusIcon caches and clipping. Image paths bypass symbolic icon recoloring; status is also shown by the tooltip and bottom color strip. Both left and right clicks open the menu. Cinnamon still controls the panel's icon size and whether its XApp status applet is visible.
+The tray uses the blue 5h recharge logo on an opaque white background with a dark border and a yellow (idle) or green (running) status strip. When Cinnamon's native XApp status applet is active, it uses XApp; with legacy or collapsible trays it uses an opaque XEmbed drawing surface at the actual allocated size, avoiding GTK StatusIcon caches and clipping. Image paths bypass symbolic icon recoloring; status is also shown by the tooltip and bottom color strip. Both left and right clicks open the menu. Cinnamon still controls the panel's icon size and whether its XApp status applet is visible.
 
 ```bash
 sudo apt install python3-venv python3-gi python3-cairo python3-gi-cairo gir1.2-gtk-3.0 gir1.2-xapp-1.0 python3-pyatspi gir1.2-atspi-2.0 xdotool

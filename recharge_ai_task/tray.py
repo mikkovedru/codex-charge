@@ -19,7 +19,7 @@ from .quota import discover_codex, fetch_quota, format_quota
 from .watch import WatchConfig, WatchState, run_desktop_watch
 
 from .tray_backend import prepare_backend, icon_class
-from .tray_icon import make_icon, IDLE_COLOR, RUNNING_COLOR
+from .branding import tray_image
 
 prepare_backend()
 
@@ -39,9 +39,6 @@ def _setup_logging() -> None:
         format="%(asctime)s %(levelname)s %(message)s",
         handlers=[logging.FileHandler(config_dir() / "tray.log", encoding="utf-8")],
     )
-
-
-_make_icon = make_icon
 
 
 def _resolve_cli_exe() -> list[str]:
@@ -88,7 +85,7 @@ class TrayApp:
     def _set_status(self, running: bool) -> None:
         if self._icon is None:
             return
-        self._icon.icon = _make_icon(RUNNING_COLOR if running else IDLE_COLOR)
+        self._icon.icon = tray_image(running=running)
         title = t("app.status.running") if running else t("app.status.idle")
         self._icon.title = f"{t('app.name')} - {title}"
 
@@ -418,7 +415,7 @@ class TrayApp:
                 set_autostart(True)  # Update enabled entries with the startup marker.
             self._icon = icon_class(pystray.Icon)(
                 "recharge-ai-task",
-                _make_icon(IDLE_COLOR),
+                tray_image(),
                 t("app.name"),
                 menu=self._build_menu(),
             )

@@ -1,5 +1,9 @@
 # Release Notes — v1.1.0
 
+<p align="center">
+  <img src="assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 **Repository:** https://github.com/mikkovedru/recharge-ai-task
 
 **Tag:** `v1.1.0`  

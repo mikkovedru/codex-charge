@@ -4,4 +4,6 @@ include README.md
 include README_zh.md
 include RELEASE.md
 recursive-include recharge_ai_task/locales *.json
+recursive-include recharge_ai_task/assets *.png *.ico
+recursive-include docs/assets *.png
 recursive-include scripts *.py *.sh *.ps1 *.spec

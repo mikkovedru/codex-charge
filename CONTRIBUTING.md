@@ -1,5 +1,9 @@
 # Contributing
 
+<p align="center">
+  <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 Thank you for considering a contribution to Recharge AI-task.
 
 ## Development setup

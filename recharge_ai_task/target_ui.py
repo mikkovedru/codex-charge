@@ -20,12 +20,14 @@ from .target_delivery import open_target, send_signals
 from .targets import Target, discover_targets
 from .status_display import COLORS, status_level, status_tooltip
 from .status_log import StatusLog
+from .branding import asset_path, set_window_icon
 
 
 class TargetPicker(Gtk.Window):
     def __init__(self, *, quit_on_close=True):
         self.quit_on_close = quit_on_close
         super().__init__(title="Recharge AI-task")
+        set_window_icon(self)
         self.set_default_size(1120, 740)
         self.config = AppConfig.load()
         self.selected = {t.key: t for t in self.config.targets()}
@@ -89,7 +91,12 @@ class TargetPicker(Gtk.Window):
         for widget in (self.quota_button, self.settings_button):
             controls.pack_start(widget, False, False, 0)
         dashboard.pack_start(controls, False, False, 0)
-        box.pack_start(dashboard, False, False, 0)
+        dashboard_row = Gtk.Box(spacing=12)
+        dashboard_row.pack_start(dashboard, True, True, 0)
+        self.logo = Gtk.Image.new_from_file(str(asset_path("logo-lockup.png")))
+        self.logo.get_accessible().set_name("Recharge AI-task logo")
+        dashboard_row.pack_end(self.logo, False, False, 0)
+        box.pack_start(dashboard_row, False, False, 0)
         self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
         box.pack_start(self.search, False, False, 0)

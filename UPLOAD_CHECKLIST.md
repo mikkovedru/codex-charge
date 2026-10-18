@@ -1,5 +1,9 @@
 # 上传文件清单 / Upload checklist
 
+<p align="center">
+  <img src="docs/assets/logo-lockup.png" width="200" alt="Recharge AI-task logo">
+</p>
+
 仓库：[Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task)
 
 以下文件**需要**提交到 GitHub；其余目录已被 `.gitignore` 排除。

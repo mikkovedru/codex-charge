@@ -15,6 +15,7 @@ $CommonArgs = @(
     "--paths", $Root,
     "--collect-submodules", "recharge_ai_task",
     "--collect-data", "recharge_ai_task",
+    "--icon", (Join-Path $Root "recharge_ai_task\assets\recharge-ai-task.ico"),
     "--add-data", "$Locales;recharge_ai_task\locales"
 )
 
