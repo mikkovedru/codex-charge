@@ -88,6 +88,7 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
     monkeypatch.setattr(tray, "discover_codex", lambda _: "codex")
     monkeypatch.setattr(tray, "is_autostart_enabled", lambda: False)
     def watch(_cfg, stop):
+        _cfg.state.progress = {"phase": "waiting_quota", "next_check_at": 1234}
         stop.wait(5)
         return 0
     monkeypatch.setattr(tray, "run_desktop_watch", watch)
@@ -99,6 +100,7 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
         assert not tray_control.request()["desktop_watch"]
         status = tray_control.request("start-watch")
         assert status["desktop_watch"] and status["launched_at_startup"]
+        assert status["watch_progress"] == {"phase": "waiting_quota", "next_check_at": 1234}
         assert status["watch_settings"]["targets"] == [[Target("thread", "a", "A").key, True, True]]
         changed = AppConfig.load()
         changed.continue_prompt = "New signal"
@@ -114,6 +116,7 @@ def test_watch_controller_tracks_actual_thread_and_settings(monkeypatch):
         while tray_control.request()["desktop_watch"] and time.monotonic() < deadline:
             time.sleep(.02)
         assert not tray_control.request()["desktop_watch"]
+        assert tray_control.request()["watch_progress"] is None
     finally:
         app.stop_service()
         server.close()

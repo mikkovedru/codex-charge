@@ -26,6 +26,7 @@ class WatchState:
     seen_resets: set[tuple[int, int]] = field(default_factory=set)
     pending: bool = False
     wake_at: float = 0
+    progress: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -66,16 +67,28 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
         _log_status("Choose signal targets first: recharge-ai-task targets --gui")
         return 1
     state = config.state if config.state is not None else WatchState()
+    checked_at = None
+
+    def wait(seconds, phase):
+        # Publish one complete observation for the dashboard. Delivery accounting
+        # remains private to the worker and is never controlled through this view.
+        state.progress = {"phase": phase, "checked_at": checked_at,
+                          "next_check_at": time.time() + seconds}
+        stop.wait(seconds)
 
     _log_status(t("watch.started"))
 
     while not stop.is_set():
+        state.progress = {"phase": "checking_quota", "checked_at": checked_at,
+                          "next_check_at": None}
         try:
             quota = fetch_quota(codex)
         except Exception as exc:
             _log_status(t("cli.quota_fallback_failed", error=exc))
-            stop.wait(60)
+            wait(60, "quota_unavailable")
             continue
+
+        checked_at = time.time()
 
         exhausted = [window for window in (quota.primary, quota.secondary)
                      if window is not None and window.used_percent >= 100]
@@ -100,12 +113,12 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
             _log_status(t("watch.blocked", prompt=prompt, time=wake_local))
             # Refresh quota after waiting; a passed reset timestamp alone does
             # not prove that quota is available. Keep waits bounded for shutdown.
-            stop.wait(min(60, max(5, state.wake_at - time.time())))
+            wait(min(60, max(5, state.wake_at - time.time())), "waiting_quota")
             continue
 
         if getattr(quota, "rate_limit_reached", False):
             _log_status("Codex still reports a quota limit; waiting for availability.")
-            stop.wait(30)
+            wait(30, "waiting_quota")
             continue
 
         if not state.startup_checked and not state.pending:
@@ -124,14 +137,16 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
 
         if not state.pending:
             _log_status(t("watch.polling", percent=used))
-            stop.wait(_poll_interval(used, config.poll_seconds))
+            wait(_poll_interval(used, config.poll_seconds), "monitoring")
             continue
 
         remaining = state.wake_at - time.time()
         if remaining > 0:
-            stop.wait(min(60, remaining))
+            wait(min(60, remaining), "grace_period")
             continue
 
+        state.progress = {"phase": "delivering", "checked_at": checked_at,
+                          "next_check_at": None}
         for target in targets:
             if stop.is_set():
                 break
@@ -151,6 +166,6 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
             _log_status(f"{target.title} [{target.id}]: {result.detail}")
 
         state.pending = any(target.key not in state.delivered for target in targets)
-        stop.wait(30)
+        wait(30, "retry_pending" if state.pending else "monitoring")
 
     return 0

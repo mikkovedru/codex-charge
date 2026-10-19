@@ -81,6 +81,14 @@ On, a red border when Off, and a yellow border while Stopping. It updates every
 two seconds. A stopping worker must finish before another starts. If the tray is absent, Start launches it.
 Closing the picker leaves the tray and active watch running.
 
+The overview groups **Monitoring**, **Recipients**, and **Next check** above
+the list. Monitoring reports the tray worker, independently of each chat's task
+status. Recipients counts the selected signal destinations. Next check uses the
+worker's scheduled quota check or delivery retry, with a live countdown and the
+reason for waiting. It does not promise that a task will resume at that time.
+An unavailable tray, failed quota read, grace period, and pending delivery retry
+have distinct explanations. Stopping monitoring removes its old countdown.
+
 The list includes separate **Task status** and **Goal status** columns next to
 its title. Status and target discovery refresh every 15 seconds without clearing
 your choices; **Refresh** updates them immediately. Directly below the list,

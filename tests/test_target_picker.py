@@ -61,6 +61,9 @@ def check():
         assert "42%" in window.quota_label.get_text()
         assert "Weekly" in window.quota_label.get_text() and "resets" in window.quota_label.get_text()
         assert "started at login: Yes" in window.startup_label.get_text()
+        assert window.recipient_label.get_text().startswith("0 selected")
+        assert window.next_check_label.get_text() == "—"
+        assert "monitoring is off" in window.next_check_detail.get_text()
         # The toolbar immediately follows the list: Refresh, status, Copy.
         toolbar = window.list_toolbar
         assert toolbar.get_children() == [window.refresh_button, window.inventory_status, window.copy_button, window.open_button]
@@ -175,6 +178,13 @@ def check():
         assert "watch-off" in window.watch_label.get_style_context().list_classes()
         color = window.watch_label.get_style_context().get_border_color(Gtk.StateFlags.NORMAL)
         assert color.red > .7 and color.green < .2 and color.alpha == 1
+        window.runtime = {"desktop_watch": True, "watch_settings": target_ui.tray_control.watch_settings(AppConfig.load()),
+            "watch_progress": {"phase": "waiting_quota", "next_check_at": time.time()+30}}
+        window.render_quota()
+        assert window.next_check_label.get_text() == "In 00:30"
+        assert "Waiting for quota" in window.next_check_detail.get_text()
+        window.runtime = dict(runtime)
+        window._render_runtime()
         window.search.set_text("Named project")
         window.filtered.refilter()
         assert len(window.filtered) == 1 and window.filtered[0][4] == "alpha"
@@ -184,6 +194,7 @@ def check():
         assert len(window.filtered) == 1
         window._toggle(None, "0")
         assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
+        assert window.recipient_label.get_text().startswith("1 selected")
         assert not window.dirty() and not hasattr(window, "save_state")
         assert [c.get_title() for c in window.table.get_columns()][:8] == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project", "Project path", "Kind"]
         window.table.get_selection().select_path("0")

@@ -398,6 +398,7 @@ class TrayApp:
                 "cli_running": self._proc is not None and self._proc.poll() is None,
                 "launched_at_startup": self.launched_at_startup,
                 "autostart": is_autostart_enabled(), "watch_error": self._watch_error,
+                "watch_progress": dict(self._watch_state.progress) if alive and self._watch_state else None,
                 "watch_settings": self._watch_settings if alive else None}
 
     def run(self, *, show_gui=False, settings=False) -> None:

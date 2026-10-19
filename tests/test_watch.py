@@ -13,7 +13,7 @@ BLOCKED = Quota("test", RateWindow(100, 300, 100), None, True)
 AVAILABLE = replace(BLOCKED, primary=RateWindow(0, 300, 200), rate_limit_reached=False)
 
 
-def run_snapshots(monkeypatch, snapshots, *, selected=(A,), grace=0, outcomes=(), goal=False, recovery_calls=None):
+def run_snapshots(monkeypatch, snapshots, *, selected=(A,), grace=0, outcomes=(), goal=False, recovery_calls=None, state=None):
     sequence = iter(snapshots)
     quota = [snapshots[-1]]
     now = [100.0]
@@ -44,9 +44,23 @@ def run_snapshots(monkeypatch, snapshots, *, selected=(A,), grace=0, outcomes=()
     monkeypatch.setattr(watch, "recover_target", recover)
     monkeypatch.setattr(watch, "quota_stopped_targets", lambda _, **kwargs: (set(), []))
     monkeypatch.setattr(watch.time, "time", lambda: now[0])
-    config = watch.WatchConfig(desktop_targets=selected, grace_seconds=grace, goal_mode=goal)
+    config = watch.WatchConfig(desktop_targets=selected, grace_seconds=grace, goal_mode=goal, state=state)
     assert watch.run_desktop_watch(config, Stop()) == 0
     return sent, waits
+
+
+@pytest.mark.parametrize("snapshot,pending,wake_at,outcomes,phase", [
+    (BLOCKED, False, 0, (), "waiting_quota"),
+    (AVAILABLE, False, 0, (), "monitoring"),
+    (RuntimeError("offline"), False, 0, (), "quota_unavailable"),
+    (AVAILABLE, True, 110, (), "grace_period"),
+    (AVAILABLE, True, 0, [(False, True)], "retry_pending"),
+])
+def test_overview_reports_actual_worker_wait(monkeypatch, snapshot, pending, wake_at, outcomes, phase):
+    state = watch.WatchState(startup_checked=True, pending=pending, wake_at=wake_at)
+    _, waits = run_snapshots(monkeypatch, [snapshot], outcomes=outcomes, state=state)
+    assert state.progress == {"phase": phase, "next_check_at": 100 + waits[0],
+                              "checked_at": None if isinstance(snapshot, Exception) else 100}
 
 
 def test_desktop_watch_sends_after_confirmed_reset(monkeypatch):

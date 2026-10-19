@@ -18,7 +18,7 @@ from .quota import discover_codex, fetch_quota
 from . import tray_control
 from .target_delivery import open_target, send_signals
 from .targets import Target, discover_targets
-from .status_display import COLORS, status_level, status_tooltip
+from .status_display import COLORS, status_level, status_tooltip, watch_check_summary
 from .status_log import StatusLog
 from .branding import asset_path, set_window_icon
 
@@ -54,6 +54,7 @@ class TargetPicker(Gtk.Window):
         dashboard = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.watch_label = Gtk.Label(label="Desktop watch: checking…", xalign=0)
         self.watch_label.set_line_wrap(True)
+        self.watch_label.set_max_width_chars(25)
         watch_css = Gtk.CssProvider()
         watch_css.load_from_data(b"""
             .watch-status { border-width: 2px; border-style: solid; border-radius: 4px; padding: 6px 8px; }
@@ -72,10 +73,33 @@ class TargetPicker(Gtk.Window):
         self.watch_button = Gtk.Button(label="Start Desktop watch")
         self.watch_button.connect("clicked", self.toggle_watch)
         self.watch_button.set_sensitive(False)
-        watch_row = Gtk.Box(spacing=8)
+        watch_row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         watch_row.pack_start(self.watch_button, False, False, 0)
-        watch_row.pack_start(self.watch_label, False, False, 0)
-        dashboard.pack_start(watch_row, False, False, 0)
+        watch_row.pack_start(self.watch_label, True, True, 0)
+        overview = Gtk.Box(spacing=10, homogeneous=True)
+
+        def card(title, content):
+            frame = Gtk.Frame()
+            body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin=10)
+            body.pack_start(Gtk.Label(label=title, xalign=0), False, False, 0)
+            body.pack_start(content, True, True, 0)
+            frame.add(body)
+            overview.pack_start(frame, True, True, 0)
+
+        card("Monitoring", watch_row)
+        self.recipient_label = Gtk.Label(xalign=0)
+        self.recipient_label.set_line_wrap(True)
+        self.recipient_label.set_max_width_chars(30)
+        card("Recipients", self.recipient_label)
+        check = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        self.next_check_label = Gtk.Label(label="Checking…", xalign=0)
+        self.next_check_detail = Gtk.Label(xalign=0)
+        self.next_check_detail.set_line_wrap(True)
+        self.next_check_detail.set_max_width_chars(32)
+        check.pack_start(self.next_check_label, False, False, 0)
+        check.pack_start(self.next_check_detail, False, False, 0)
+        card("Next check", check)
+        dashboard.pack_start(overview, False, False, 0)
         startup_row = Gtk.Box(spacing=8)
         self.startup_toggle = Gtk.CheckButton()
         self.startup_toggle.set_tooltip_text("Run Recharge AI-task in the tray when you log in")
@@ -353,6 +377,7 @@ class TargetPicker(Gtk.Window):
             except Exception:
                 state += " — saved settings could not be read"
         self.watch_label.set_text("Desktop watch: " + state)
+        self._render_overview()
         context = self.watch_label.get_style_context()
         for name in ("watch-off", "watch-on", "watch-stopping"):
             context.remove_class(name)
@@ -378,6 +403,15 @@ class TargetPicker(Gtk.Window):
             startup = "Unavailable"
         launched = "Yes" if runtime.get("launched_at_startup") else "No" if self.runtime else "Unknown (tray unavailable)"
         self.startup_label.set_text(f"Run at login: {startup} · This tray started at login: {launched}")
+
+    def _render_overview(self):
+        count = len(self.selected)
+        self.recipient_label.set_markup(f"<b>{count} selected</b>\n" +
+            ("Choose Prompt or Goal in the list below." if not count else
+             "Only these recipients receive automatic signals."))
+        value, detail = watch_check_summary(self.runtime, time.time())
+        self.next_check_label.set_markup("<b>" + GLib.markup_escape_text(value) + "</b>")
+        self.next_check_detail.set_text(detail)
 
     def toggle_startup(self, *_):
         if self._updating_startup or self.busy:
@@ -463,6 +497,7 @@ class TargetPicker(Gtk.Window):
     def render_quota(self):
         if self.closed:
             return False
+        self._render_overview()
         if self.quota is None:
             self.quota_label.set_text("Quota unavailable — see messages below" if self.quota_error else "Quota: loading…")
             return True
