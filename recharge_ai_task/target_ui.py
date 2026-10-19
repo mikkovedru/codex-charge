@@ -28,7 +28,7 @@ class TargetPicker(Gtk.Window):
         self.quit_on_close = quit_on_close
         super().__init__(title="Recharge AI-task")
         set_window_icon(self)
-        self.set_default_size(1120, 740)
+        self.set_default_size(1120, 820)
         self.config = AppConfig.load()
         self.selected = {t.key: t for t in self.config.targets()}
         self.targets = dict(self.selected)
@@ -121,6 +121,11 @@ class TargetPicker(Gtk.Window):
         self.logo.get_accessible().set_name("Recharge AI-task logo")
         dashboard_row.pack_end(self.logo, False, False, 0)
         box.pack_start(dashboard_row, False, False, 0)
+        self.selection_help = Gtk.Label(xalign=0)
+        self.selection_help.set_markup("<b>Automatic quota recovery</b> · Choose Send message, Resume goal, or both for each recipient.\n"
+            "Choices and message text save automatically for future quota recovery. Editing them sends nothing now.")
+        self.selection_help.set_line_wrap(True)
+        box.pack_start(self.selection_help, False, False, 0)
         self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
         search_row = Gtk.Box(spacing=10)
@@ -137,10 +142,16 @@ class TargetPicker(Gtk.Window):
         self.table = Gtk.TreeView(model=self.filtered)
         self.table.set_has_tooltip(True)
         self.table.connect("query-tooltip", self._tooltip)
-        for label, index, action in (("Prompt", 0, "send_prompt"), ("Goal", 12, "send_goal")):
+        for label, index, action in (("Send message", 0, "send_prompt"), ("Resume goal", 12, "send_goal")):
             checkbox = Gtk.CellRendererToggle()
             checkbox.connect("toggled", self._toggle, action)
             column = Gtk.TreeViewColumn(label, checkbox, active=index)
+            header = Gtk.Label(label=label)
+            header.set_tooltip_text("Send the message below. When both actions are selected, native Goal activation is verified first."
+                if action == "send_prompt" else
+                "Resume the native goal without a message. Automatic recovery respects intentional pauses; Send now may resume a paused goal. Window recipients cannot identify a fixed goal.")
+            header.show()
+            column.set_widget(header)
             if action == "send_goal":
                 column.set_cell_data_func(checkbox, self._goal_cell)
             self.table.append_column(column)
@@ -179,7 +190,7 @@ class TargetPicker(Gtk.Window):
         box.pack_start(scroller, True, True, 0)
         self.inventory_status = Gtk.Label(label="Discovering targets…", xalign=0)
         self.inventory_status.set_line_wrap(True)
-        self.inventory_status.set_tooltip_text("Chat statuses refresh every 15 seconds. Prompt sends only the message; Goal resumes without a prompt. Goal is available for chat IDs. Task state comes from Codex's live desktop owner when available; goal state also uses the saved goal database. Windows do not identify a fixed chat. Unavailable means the state could not be read.")
+        self.inventory_status.set_tooltip_text("Chat statuses refresh every 15 seconds. Send message sends only the message; Resume goal resumes without a prompt. Resume goal is available for chat IDs. Task state comes from Codex's live desktop owner when available; goal state also uses the saved goal database. Windows do not identify a fixed chat. Unavailable means the state could not be read.")
         self.buttons = []
         self.list_toolbar = Gtk.Box(spacing=8)
         self.refresh_button = Gtk.Button(label="Refresh")
@@ -195,10 +206,11 @@ class TargetPicker(Gtk.Window):
         self.buttons.extend((self.refresh_button, self.copy_button, self.open_button))
         box.pack_start(self.list_toolbar, False, False, 0)
         prompt = Gtk.Box(spacing=8)
-        prompt_label = Gtk.Label(label="Prompt message:", valign=Gtk.Align.START)
+        prompt_label = Gtk.Label(label="Message to send:", valign=Gtk.Align.START)
         prompt_label.set_margin_top(6)
         prompt.pack_start(prompt_label, False, False, 0)
         self.signal = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        self.signal.set_tooltip_text("Used for Send message recipients. Resume goal alone does not send this message.")
         self.signal.set_left_margin(8)
         self.signal.set_right_margin(8)
         self.signal.set_top_margin(6)
@@ -218,7 +230,8 @@ class TargetPicker(Gtk.Window):
         self.summary.set_max_width_chars(80)
         self.send_row = Gtk.Box(spacing=8)
         self.send_row.pack_start(self.summary, True, True, 0)
-        self.send_button = Gtk.Button(label="Send signals", valign=Gtk.Align.CENTER)
+        self.send_button = Gtk.Button(label="Send now", valign=Gtk.Align.CENTER)
+        self.send_button.set_tooltip_text("Apply the selected actions immediately, even when Desktop watch is off. If both are selected, Goal activation is verified before sending the message. Paused goals may resume.")
         self.send_button.connect("clicked", self.send)
         self.send_row.pack_start(self.send_button, False, False, 0)
         self.buttons.append(self.send_button)
@@ -306,7 +319,7 @@ class TargetPicker(Gtk.Window):
         row = self.filtered[path]
         target = self.targets[row[6] + "\0" + row[4]]
         if action == "send_goal" and target.kind != "thread":
-            self._message("Goal signals need a chat ID. Window recipients support Prompt only.", "warning")
+            self._message("Resume goal needs a chat ID. Window recipients support Send message only.", "warning")
             return
         column = 0 if action == "send_prompt" else 12
         row[column] = not row[column]
@@ -333,7 +346,11 @@ class TargetPicker(Gtk.Window):
     def _summary(self):
         prompts = sum(t.signal_actions()[0] for t in self.selected.values())
         goals = sum(t.signal_actions()[1] for t in self.selected.values())
-        self.summary.set_text(f"{len(self.selected)} recipient(s) · Prompt: {prompts} · Goal: {goals}. When both are enabled, Goal activation is verified before the prompt is sent.")
+        count = len(self.selected)
+        recipients = f"{count} " + ("recipient" if count == 1 else "recipients")
+        self.summary.set_text(f"{recipients} · Send message: {prompts} · Resume goal: {goals}.\n"
+            "Send now acts immediately, even with monitoring off, and may resume paused goals.")
+        self.send_button.set_label(f"Send now to {recipients}" if count else "Send now")
         self.summary.set_line_wrap(True)
         message = ("Could not save automatically — retrying: " + self.autosave_error if self.autosave_error else
                    "Changes differ from saved settings. Edits save automatically." if self.dirty() else "")
@@ -414,6 +431,7 @@ class TargetPicker(Gtk.Window):
         context.add_class("watch-stopping" if stopping or restarting else "watch-on" if alive else "watch-off")
         self.watch_button.set_label("Stop Desktop watch" if alive or requested else "Start Desktop watch")
         self.watch_button.set_sensitive(not self.busy and not self.runtime_busy and (not stopping or restarting) and not runtime.get("cli_running", False))
+        self.send_button.set_sensitive(not self.busy and bool(self.selected))
         notice = runtime.get("watch_error") or runtime.get("watch_pause_reason") or (
             "Applying saved settings; Desktop watch will restart automatically." if restarting else "")
         if notice and notice != self._runtime_notice and hasattr(self, "status"):
@@ -437,7 +455,7 @@ class TargetPicker(Gtk.Window):
     def _render_overview(self):
         count = len(self.selected)
         self.recipient_label.set_markup(f"<b>{count} selected</b>\n" +
-            ("Choose Prompt or Goal in the list below." if not count else
+            ("Choose Send message or Resume goal below." if not count else
              "Only these recipients receive automatic signals."))
         value, detail = watch_check_summary(self.runtime, time.time())
         self.next_check_label.set_markup("<b>" + GLib.markup_escape_text(value) + "</b>")
@@ -471,10 +489,10 @@ class TargetPicker(Gtk.Window):
             if self.dirty() and not self.save():
                 return
             if not self.selected:
-                self._message("Enable Prompt or Goal for at least one recipient before starting Desktop watch.", "warning")
+                self._message("Enable Send message or Resume goal for at least one recipient before starting Desktop watch.", "warning")
                 return
             if any(t.signal_actions()[0] for t in self.selected.values()) and not self._prompt_text().strip():
-                self._message("Enter a prompt message for recipients with Prompt enabled.", "warning")
+                self._message("Enter a message for recipients with Send message enabled.", "warning")
                 return
             command = "start-watch"
         def control():
@@ -700,9 +718,9 @@ class TargetPicker(Gtk.Window):
         selected = list(self.selected.values())
         text = self._prompt_text()
         if any(t.signal_actions()[0] for t in selected) and not text.strip():
-            self._message("Enter a prompt message for recipients with Prompt enabled.", "warning")
+            self._message("Enter a message for recipients with Send message enabled.", "warning")
             return
-        self._message(f"Sending signals to {len(selected)} selected recipients…", "success")
+        self._message(f"Sending now to {len(selected)} selected recipients…", "success")
         def show(results):
             accepted = sum(r.success and not r.skipped for r in results)
             skipped = sum(r.skipped for r in results)

@@ -415,13 +415,16 @@ task and goal status refreshed every 15 seconds,
 live quota usage and reset countdowns,
 startup registration and launch origin, and the actual Desktop watch state.
 Use **Start/Stop Desktop watch** and **Settings…** directly from this window.
-Each row has independent **Prompt** and **Goal** checkboxes. Use **Send signals**
-for an immediate send; the choices also persist for quota-reset delivery:
+Each row has independent **Send message** and **Resume goal** checkboxes.
+Choices and message text save automatically for future quota recovery; editing
+them does not send a manual signal. **Send now to N recipients** applies those
+choices immediately, even with monitoring off. Its label shows the recipient
+count, and the button is disabled when no recipients are selected:
 
-- **Prompt** sends only the configured prompt message.
-- **Goal** verifies native activation and continues the goal without a user prompt.
+- **Send message** sends only the configured message.
+- **Resume goal** verifies native activation and continues the goal without a user prompt.
 - **Both** verifies Goal activation first, then sends the prompt to continue work.
-- **Neither** excludes the recipient. Window recipients support Prompt only.
+- **Neither** excludes the recipient. Window recipients support Send message only.
 
 Goal activation preserves the existing objective, budget and usage history.
 Manual sends may resume paused goals even while a prompt turn is running,
@@ -432,10 +435,10 @@ a failed or unconfirmed Goal action prevents the subsequent prompt. Results for
 each recipient appear in the window. Starting watch after quota has recovered
 also recovers selected usage-limited goals, after the grace period.
 The checkbox before **Run at login** enables or disables startup directly;
-the watch button is beside its **Desktop watch: On/Off** status, bordered green
+the watch button is above its **Desktop watch: On/Off** status, bordered green
 when On, red when Off, and yellow while Stopping. **Refresh** sits directly
 below the list; **Copy link / ID** and **Open selected row** are on its right.
-The recipient summary and **Send signals** sit below the multiline prompt, with
+The recipient summary and **Send now to N recipients** sit below the multiline message, with
 the send button on the far right. **Project** shows the name assigned in Codex;
 **Project path** retains the chat's working path. Both precede **Kind**.
 Old selections migrate to Prompt, or Prompt + Goal when old goal recovery was enabled.

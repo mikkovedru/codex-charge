@@ -32,6 +32,7 @@ def control(command="status", **kwargs):
     if command == "stop-watch": runtime["desktop_watch"] = False
     return dict(runtime)
 target_ui.tray_control.request = control
+target_ui.send_signals = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("Preference edits sent signals"))
 from gi.repository import GLib, Gtk
 alpha = Target("thread", "alpha", "Same title", instance="profile", deeplink="codex://threads/alpha", task_status="Running", goal_status="Active", project_name="Named project", cwd="/projects/alpha")
 beta = Target("thread", "beta", "Same title", instance="profile", deeplink="codex://threads/beta", task_status="Idle", goal_status="Paused", project_name="Other project", cwd="/projects/beta")
@@ -65,7 +66,11 @@ def check():
         assert window.next_check_label.get_text() == "—"
         assert "monitoring is off" in window.next_check_detail.get_text()
         visible_titles = lambda: [c.get_title() for c in window.table.get_columns() if c.get_visible()]
-        assert visible_titles() == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project"]
+        assert visible_titles() == ["Send message", "Resume goal", "Title", "Task status", "Goal status", "Project"]
+        assert "Editing them sends nothing now" in window.selection_help.get_text()
+        assert "monitoring off" in window.summary.get_text()
+        assert not window.send_button.get_sensitive()
+        assert "paused goal" in window.table.get_columns()[1].get_widget().get_tooltip_text()
         assert not window.technical_toggle.get_active()
         view_settings = AppConfig.load()
         watch_settings = target_ui.tray_control.watch_settings(view_settings)
@@ -221,8 +226,10 @@ def check():
         window._toggle(None, "0")
         assert list(window.selected.values()) == [replace(beta, send_prompt=True, send_goal=False)]
         assert window.recipient_label.get_text().startswith("1 selected")
+        assert window.send_button.get_label() == "Send now to 1 recipient"
+        assert window.send_button.get_sensitive()
         assert not window.dirty() and not hasattr(window, "save_state")
-        assert [c.get_title() for c in window.table.get_columns()][:8] == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project", "Project path", "Kind"]
+        assert [c.get_title() for c in window.table.get_columns()][:8] == ["Send message", "Resume goal", "Title", "Task status", "Goal status", "Project", "Project path", "Kind"]
         window.table.get_selection().select_path("0")
         target_ui.discover_targets = lambda: Inventory([alpha, replace(beta, task_status="Waiting for input", goal_status="Blocked")])
         window.refresh_statuses()
@@ -272,7 +279,7 @@ def check():
             deliveries.append(([(t.id, t.send_prompt, t.send_goal) for t in targets], text, manual))
             return [DeliveryResult(t, True, "Selected signals accepted") for t in targets]
         target_ui.send_signals = send_signals
-        assert window.send_button.get_label() == "Send signals"
+        assert window.send_button.get_label() == "Send now to 2 recipients"
         assert not hasattr(window, "goal")
         window._toggle(None, "1", "send_goal")  # beta: both
         assert {t.id: t.signal_actions() for t in AppConfig.load().targets()}["beta"] == (True, True)
@@ -282,7 +289,8 @@ def check():
         idle()
         assert window.selected[beta.key].signal_actions() == (False, True)
         assert not window.dirty()
-        window.send()
+        assert window.send_button.get_sensitive() and "monitoring off" in window.summary.get_text()
+        window.send_button.clicked()
         assert window.status.latest_level == "success"
         idle()
         assert deliveries == [([("beta", False, True), ("alpha", True, False)], "Continue", True)]
@@ -309,7 +317,7 @@ def check():
         assert deliveries[-1] == ([("beta", False, True)], " ", True)
         window._toggle(None, "0", "send_prompt")
         window.send()
-        assert "Enter a prompt" in window.status.latest_text and window.status.latest_level == "warning"
+        assert "Enter a message" in window.status.latest_text and window.status.latest_level == "warning"
         window.signal_buffer.set_text("Continue")
         idle()
         # Dashboard controls precede their own status text.

@@ -63,15 +63,18 @@ keeps the tray and watch running. Double-click the icon to hide the visible
 dashboard to the tray, or restore it with the current view intact. GUI launch
 commands and **Open Recharge AI-task…** always show the dashboard. Right-click for
 the tray menu, including **Exit** to quit.
-Search by title, ID, project, PID or deep link. Enable **Prompt**, **Goal**, or both
-for each recipient and edit the multiline prompt message. Newlines are preserved
+Search by title, ID, project, PID or deep link. Enable **Send message**, **Resume goal**, or both
+for each recipient and edit the multiline message. Newlines are preserved
 when saving and sending. These changes save automatically for quota-reset
-delivery. **Send signals** uses the current choices immediately.
-Prompt sends only the message. Goal resumes natively and starts
+delivery; editing them does not send a manual signal. **Send now to N recipients**
+uses the current choices immediately, even when monitoring is off. The button
+shows the recipient count and is disabled when none are selected. Manual sends
+may resume paused goals; automatic recovery continues to respect intentional pauses.
+Send message sends only the message. Resume goal resumes natively and starts
 continuation without a prompt. Both activates the goal first, then sends the
-prompt. Window rows support Prompt only. **Open selected row** opens a chat
+message. Window rows support Send message only. **Open selected row** opens a chat
 without sending.
-The compact table shows Prompt, Goal, Title, Task status, Goal status and Project.
+The compact table shows Send message, Resume goal, Title, Task status, Goal status and Project.
 Enable **Show technical columns** for paths, kind, availability, IDs, PID,
 profile, deep link and desktop client. This preference survives reopening the
 dashboard and does not restart monitoring. All fields remain searchable in
@@ -98,7 +101,7 @@ its title. Status and target discovery refresh every 15 seconds without clearing
 your choices; **Refresh** updates them immediately. Directly below the list,
 **Refresh** appears on the left, followed by the last refresh time, with
 **Copy link / ID** and **Open selected row** on the right. Below the multiline
-prompt, the recipient summary shares a row with **Send signals** at the far
+message, the recipient summary shares a row with **Send now to N recipients** at the far
 right. Search also matches both status columns and the project name.
 
 **Project** and **Project path** sit between **Goal status** and **Kind**. Project
