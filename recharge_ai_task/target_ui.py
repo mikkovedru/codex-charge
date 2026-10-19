@@ -123,7 +123,14 @@ class TargetPicker(Gtk.Window):
         box.pack_start(dashboard_row, False, False, 0)
         self.search = Gtk.SearchEntry(placeholder_text="Search title, status, ID, project, process, or link…")
         self.search.connect("search-changed", lambda _: self.filtered.refilter())
-        box.pack_start(self.search, False, False, 0)
+        search_row = Gtk.Box(spacing=10)
+        search_row.pack_start(self.search, True, True, 0)
+        self.technical_toggle = Gtk.CheckButton(label="Show technical columns")
+        self.technical_toggle.set_tooltip_text("Show paths, recipient kind, availability, IDs, process and routing details. Search includes these fields in either view.")
+        self.technical_toggle.set_active(self.config.show_technical_columns)
+        self.technical_toggle.connect("toggled", self.toggle_technical_columns)
+        search_row.pack_start(self.technical_toggle, False, False, 0)
+        box.pack_start(search_row, False, False, 0)
         self.store = Gtk.ListStore(bool, str, str, str, str, str, str, str, str, str, str, str, bool, str)
         self.filtered = self.store.filter_new()
         self.filtered.set_visible_func(self._visible)
@@ -141,6 +148,7 @@ class TargetPicker(Gtk.Window):
                    ("Project", 13, 180), ("Project path", 8, 300), ("Kind", 2, 80), ("Availability", 3, 160), ("ID", 4, 295),
                    ("PID", 5, 95), ("Instance", 6, 260), ("Deep link", 7, 400),
                    ("Desktop client", 9, 300)]
+        self.technical_columns = []
         for name, index, width in columns:
             renderer = Gtk.CellRendererText()
             renderer.set_property("ellipsize", 3)
@@ -159,6 +167,11 @@ class TargetPicker(Gtk.Window):
             column.set_resizable(True)
             column.set_sizing(Gtk.TreeViewColumnSizing.FIXED)
             column.set_fixed_width(width)
+            if index == 1:
+                self.title_column = column
+            if index not in (1, 10, 11, 13):
+                self.technical_columns.append(column)
+                column.set_visible(self.config.show_technical_columns)
             self.table.append_column(column)
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -259,6 +272,23 @@ class TargetPicker(Gtk.Window):
 
     def _message(self, text, level="normal"):
         self.status.write(text, level)
+
+    def toggle_technical_columns(self, *_):
+        visible = self.technical_toggle.get_active()
+        path, cursor_column = self.table.get_cursor()
+        if not visible and path is not None and cursor_column in self.technical_columns:
+            self.table.set_cursor(path, self.title_column)
+        for column in self.technical_columns:
+            column.set_visible(visible)
+        if not visible:
+            self.table.get_hadjustment().set_value(0)
+        try:
+            config = AppConfig.load()
+            config.show_technical_columns = visible
+            config.save()
+            self.config = config
+        except Exception as exc:
+            self._message(f"Could not save table view: {exc}", "error")
 
     def _visible(self, model, iterator, _data):
         query = self.search.get_text().casefold()

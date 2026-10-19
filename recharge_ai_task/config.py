@@ -40,6 +40,7 @@ class AppConfig:
     desktop_window_titles: list[str] | None = None
     poll_seconds: int = 30
     desktop_targets: list[dict] | None = None
+    show_technical_columns: bool = False
 
     @classmethod
     def load(cls) -> AppConfig:
@@ -61,6 +62,7 @@ class AppConfig:
             desktop_window_titles=data.get("desktop_window_titles"),
             poll_seconds=int(data.get("poll_seconds", 30)),
             desktop_targets=data.get("desktop_targets"),
+            show_technical_columns=bool(data.get("show_technical_columns", False)),
         )
 
     def save(self) -> None:

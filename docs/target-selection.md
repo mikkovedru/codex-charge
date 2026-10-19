@@ -71,7 +71,11 @@ Prompt sends only the message. Goal resumes natively and starts
 continuation without a prompt. Both activates the goal first, then sends the
 prompt. Window rows support Prompt only. **Open selected row** opens a chat
 without sending.
-Metadata columns can be resized and scrolled; hovering a row shows full values.
+The compact table shows Prompt, Goal, Title, Task status, Goal status and Project.
+Enable **Show technical columns** for paths, kind, availability, IDs, PID,
+profile, deep link and desktop client. This preference survives reopening the
+dashboard and does not restart monitoring. All fields remain searchable in
+either view. Columns can be resized and scrolled; hovering a row shows full values.
 
 Successful automatic saves do not add a status line. Write failures remain
 visible and retry while the window is open. Changes made by another picker are

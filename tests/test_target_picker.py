@@ -64,6 +64,32 @@ def check():
         assert window.recipient_label.get_text().startswith("0 selected")
         assert window.next_check_label.get_text() == "—"
         assert "monitoring is off" in window.next_check_detail.get_text()
+        visible_titles = lambda: [c.get_title() for c in window.table.get_columns() if c.get_visible()]
+        assert visible_titles() == ["Prompt", "Goal", "Title", "Task status", "Goal status", "Project"]
+        assert not window.technical_toggle.get_active()
+        view_settings = AppConfig.load()
+        watch_settings = target_ui.tray_control.watch_settings(view_settings)
+        window.technical_toggle.set_active(True)
+        assert AppConfig.load().show_technical_columns
+        assert len(visible_titles()) == 14
+        reopened = target_ui.TargetPicker()
+        assert reopened.technical_toggle.get_active()
+        assert all(c.get_visible() for c in reopened.technical_columns)
+        reopened.destroy()
+        # Hiding a focused technical cell retains the row and moves its cursor
+        # into a visible column. Column widths and signal choices are retained.
+        technical = window.technical_columns[0]
+        technical.set_fixed_width(345)
+        window.table.set_cursor(Gtk.TreePath.new_from_string("0"), technical)
+        selected_id = window._row_target().id
+        window.technical_toggle.set_active(False)
+        assert not AppConfig.load().show_technical_columns
+        assert window._row_target().id == selected_id
+        assert window.table.get_cursor()[1] is window.title_column
+        assert technical.get_fixed_width() == 345
+        assert target_ui.tray_control.watch_settings(AppConfig.load()) == watch_settings
+        assert AppConfig.load().desktop_targets == view_settings.desktop_targets
+        assert AppConfig.load().continue_prompt == view_settings.continue_prompt
         # The toolbar immediately follows the list: Refresh, status, Copy.
         toolbar = window.list_toolbar
         assert toolbar.get_children() == [window.refresh_button, window.inventory_status, window.copy_button, window.open_button]
