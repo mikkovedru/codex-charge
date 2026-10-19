@@ -15,6 +15,7 @@ fi
 LOCALES="$ROOT/recharge_ai_task/locales"
 COMMON=(
   --noconfirm --onefile
+  --specpath "$ROOT/build"
   --paths "$ROOT"
   --collect-data recharge_ai_task
   --add-data "$LOCALES:recharge_ai_task/locales"

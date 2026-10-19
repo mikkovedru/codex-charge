@@ -12,6 +12,7 @@ if ([Environment]::Is64BitOperatingSystem -ne $true) {
 $Locales = Join-Path $Root "recharge_ai_task\locales"
 $CommonArgs = @(
     "--noconfirm", "--onefile",
+    "--specpath", (Join-Path $Root "build"),
     "--paths", $Root,
     "--collect-submodules", "recharge_ai_task",
     "--collect-data", "recharge_ai_task",

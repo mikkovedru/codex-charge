@@ -201,6 +201,9 @@ Toggle via tray menu **Run at startup**.
 
 Official binaries target **x86_64** on Windows and Ubuntu only (no ARM builds in official releases).
 
+Build scripts keep generated PyInstaller specifications and intermediate files
+under `build/`. Finished executables are written to `dist/`.
+
 **Windows:**
 
 ```powershell
