@@ -80,7 +80,7 @@ def test_startup_upgrade_leaves_exactly_one_named_registration(tmp_path,monkeypa
     assert autostart.is_autostart_enabled()
     autostart.sync_autostart(True)
     assert target.exists() and not legacy.exists()
-    assert 'recharge_ai_task.tray' in target.read_text() and '--autostart' in target.read_text()
+    assert 'recharge_ai_task.gui --tray --autostart' in target.read_text()
     if platform=='linux': assert 'Name=Recharge AI-task' in target.read_text()
     autostart.set_autostart(False)
     assert not target.exists() and not autostart.is_autostart_enabled()
@@ -116,7 +116,8 @@ def test_distribution_and_commands_use_new_identity():
     package=distribution('recharge-ai-task')
     assert package.metadata['Name']=='recharge-ai-task'
     assert {e.name:e.value for e in package.entry_points} == {
-        'recharge-ai-task':'recharge_ai_task.cli:main',
+        'recharge-ai-task':'recharge_ai_task.gui:main',
+        'recharge-ai-task-cli':'recharge_ai_task.cli:main',
         'recharge-ai-task-gui':'recharge_ai_task.gui:main',
         'recharge-ai-task-tray':'recharge_ai_task.tray:main',
         'recharge-ai-task-configure':'recharge_ai_task.configure:main'}

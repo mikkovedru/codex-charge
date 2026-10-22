@@ -50,9 +50,11 @@ git push -u origin master
 
 ## Release attachments
 
-- `recharge-ai-task-windows-x86_64.zip`: CLI and tray executables.
-- `recharge-ai-task-linux-x86_64.tar.gz`: CLI, GUI launcher and tray executables.
+- `recharge-ai-task-windows-x86_64.zip`: CLI and combined desktop executables, plus the old GUI/tray command scripts.
+- `recharge-ai-task-linux-x86_64.tar.gz`: CLI and combined desktop executables, plus the old GUI/tray shell launchers.
 
-Keep the executables in each archive together. Build and tag releases using
+The desktop executable is `recharge-ai-task` and the CLI executable is
+`recharge-ai-task-cli` (with `.exe` on Windows). Keep them together for
+CLI/desktop integration. Build and tag releases using
 [RELEASE.md](RELEASE.md). Python wheels and source distributions include the
 English message catalog and converted program artwork.

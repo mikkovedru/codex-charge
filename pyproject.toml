@@ -30,7 +30,8 @@ Repository = "https://github.com/mikkovedru/recharge-ai-task"
 Issues = "https://github.com/mikkovedru/recharge-ai-task/issues"
 
 [project.scripts]
-recharge-ai-task = "recharge_ai_task.cli:main"
+recharge-ai-task = "recharge_ai_task.gui:main"
+recharge-ai-task-cli = "recharge_ai_task.cli:main"
 recharge-ai-task-gui = "recharge_ai_task.gui:main"
 recharge-ai-task-tray = "recharge_ai_task.tray:main"
 recharge-ai-task-configure = "recharge_ai_task.configure:main"

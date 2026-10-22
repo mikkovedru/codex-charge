@@ -1,26 +1,35 @@
-"""Open the GTK dashboard from the CLI or dedicated GUI executable."""
+"""Combined dashboard and tray entry point."""
 from __future__ import annotations
 
-import argparse
-import subprocess
 import sys
-from pathlib import Path
+
+from .desktop_launch import _parser
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="recharge-ai-task gui", description="Open the Recharge AI-task dashboard and system tray; closing the window keeps the tray running.")
-    parser.parse_args(argv)
-    if sys.platform != "linux":
+    args = list(sys.argv[1:] if argv is None else argv)
+    # Preserve the GUI/tray command forms from earlier releases.
+    if args[:1] == ["gui"]:
+        args = args[1:]
+    elif args[:1] == ["tray"]:
+        args = ["--tray", *args[1:]]
+    # The native Goal helper uses the same packaged GTK runtime in its own
+    # process, without opening a tray or dashboard or joining their controller.
+    if args == ["--resume-goal-ui"]:
+        from .desktop_goal_ui import main as goal_ui
+        return goal_ui()
+    parser = _parser()
+    options = parser.parse_args(args)
+    if sys.platform != "linux" and (options.targets or options.settings):
         parser.error("The graphical dashboard requires Linux GTK")
-    if getattr(sys, "frozen", False):
-        tray = Path(sys.executable).with_name("recharge-ai-task-tray")
-        if not tray.is_file():
-            sys.stderr.write(f"Missing companion GUI executable: {tray}\nKeep the three release executables in the same folder.\n")
-            return 1
-        command = [str(tray)]
-    else:
-        command = [sys.executable, "-m", "recharge_ai_task.tray"]
-    return subprocess.call([*command, "--targets"])
+    if options.autostart and (options.targets or options.settings):
+        parser.error("--autostart starts in the tray; it cannot open dashboard settings or targets")
+    tray_only = options.tray or options.autostart or sys.platform == "win32"
+    tray_args = [] if tray_only else ["--settings" if options.settings else "--targets"]
+    if options.autostart:
+        tray_args.append("--autostart")
+    from .tray import main as tray_main
+    return tray_main(tray_args)
 
 
 if __name__ == "__main__":

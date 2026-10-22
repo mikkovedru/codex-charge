@@ -30,4 +30,4 @@ python scripts/prepare_branding.py --symbol /path/to/symbol.png --lockup /path/t
 ```
 
 Python packages and frozen executables include runtime assets automatically.
-The Windows build uses the ICO for the CLI and tray executable shell icons.
+The Windows build uses the ICO for the CLI and combined desktop executable shell icons.

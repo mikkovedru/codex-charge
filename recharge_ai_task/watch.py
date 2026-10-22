@@ -64,7 +64,7 @@ def run_desktop_watch(config: WatchConfig, stop: StopEvent | None = None) -> int
     codex = discover_codex(config.codex_path)
     targets = tuple(t for t in config.desktop_targets if any(t.signal_actions(config.goal_mode)))
     if not targets:
-        _log_status("Choose signal targets first: recharge-ai-task targets --gui")
+        _log_status("Choose signal targets first: recharge-ai-task-cli targets --gui")
         return 1
     state = config.state if config.state is not None else WatchState()
     checked_at = None

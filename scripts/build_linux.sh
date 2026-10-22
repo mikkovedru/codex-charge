@@ -23,21 +23,25 @@ COMMON=(
 
 echo "Building recharge-ai-task CLI..."
 "$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
-  --name recharge-ai-task \
+  --name recharge-ai-task-cli \
   scripts/entry_cli.py
 
-echo "Building recharge-ai-task GUI launcher..."
-"$PYTHON" -m PyInstaller "${COMMON[@]}" --console \
-  --name recharge-ai-task-gui \
-  scripts/entry_gui.py
+echo "Building the combined recharge-ai-task dashboard and tray..."
+"$PYTHON" -m PyInstaller --noconfirm scripts/gui_linux.spec
 
-echo "Building recharge-ai-task tray..."
-"$PYTHON" -m PyInstaller --noconfirm scripts/tray_linux.spec
+# Preserve the previous tray command without bundling another Python runtime.
+# Write beside the binaries so moving the release folder keeps it working.
+for launcher in gui tray; do
+  # Replace old executables atomically, including when a previous build is running.
+  install -m 755 "scripts/launch_${launcher}.sh" "dist/recharge-ai-task-${launcher}.new"
+  mv -f "dist/recharge-ai-task-${launcher}.new" "dist/recharge-ai-task-${launcher}"
+done
 
 echo ""
 echo "Output:"
 echo "  dist/recharge-ai-task"
-echo "  dist/recharge-ai-task-tray"
-echo "  dist/recharge-ai-task-gui"
+echo "  dist/recharge-ai-task-tray (compatibility launcher)"
+echo "  dist/recharge-ai-task-cli"
+echo "  dist/recharge-ai-task-gui (compatibility launcher)"
 echo ""
 echo "Linux desktop mode also requires: sudo apt install xdotool"

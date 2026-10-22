@@ -54,7 +54,7 @@ jobs:
         run: |
           bash scripts/build_linux.sh
           bash scripts/package_release.sh
-          chmod +x dist/recharge-ai-task dist/recharge-ai-task-tray
+          chmod +x dist/recharge-ai-task dist/recharge-ai-task-cli dist/recharge-ai-task-gui dist/recharge-ai-task-tray
 
       - uses: actions/upload-artifact@v4
         with:

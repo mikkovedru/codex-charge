@@ -43,18 +43,23 @@ recharge-ai-task/
 
 | Channel | Audience | Command |
 |---------|----------|---------|
-| **PyPI** | Developers | `pip install "recharge-ai-task[all]"` then `recharge-ai-task configure` |
-| **GitHub Release** | End users without Python | Download platform zip, run `recharge-ai-task-tray` |
+| **PyPI** | Developers | `pip install "recharge-ai-task[all]"` then `recharge-ai-task-cli configure` |
+| **GitHub Release** | End users without Python | Download platform zip, run `recharge-ai-task` |
 | **From source** | Contributors | `pip install -e ".[all,dev]"` |
 
 ## Release binaries (x86_64 only)
 
 | Platform | Files |
 |----------|-------|
-| Windows | `recharge-ai-task.exe`, `recharge-ai-task-tray.exe` |
-| Ubuntu | `recharge-ai-task`, `recharge-ai-task-tray` |
+| Windows | `recharge-ai-task-cli.exe`, `recharge-ai-task.exe` |
+| Ubuntu | `recharge-ai-task-cli`, `recharge-ai-task` |
 
-Both binaries in a pair must live in the **same folder**.
+The desktop binary contains both the dashboard and tray. Use `--tray` to start
+without the dashboard. It can run independently; keep the CLI beside it to
+support CLI actions from the tray and desktop launch commands from the CLI.
+Linux also includes small `recharge-ai-task-gui` and `recharge-ai-task-tray`
+compatibility scripts; Windows includes the matching `.cmd` files.
+The GUI command is `recharge-ai-task`; the CLI command is `recharge-ai-task-cli`.
 
 ## Modes
 

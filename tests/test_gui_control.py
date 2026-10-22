@@ -304,3 +304,23 @@ def test_invalid_saved_draft_suspends_watch_until_valid(monkeypatch, empty_selec
     finally:
         app.stop_service()
         if app._watch_thread: app._watch_thread.join(2)
+
+
+def test_frozen_startup_command_explicitly_starts_only_the_tray(monkeypatch, tmp_path):
+    executable = tmp_path / "recharge-ai-task"
+    monkeypatch.setattr(autostart.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(autostart.sys, "executable", str(executable))
+    assert autostart._tray_command() == f'"{executable}" --tray --autostart'
+
+
+@pytest.mark.parametrize("platform,suffix", [("linux", ""), ("win32", ".exe")])
+def test_frozen_desktop_finds_cli_without_relaunching_itself(monkeypatch, tmp_path, platform, suffix):
+    from recharge_ai_task import tray
+    monkeypatch.setattr(tray.sys, "platform", platform)
+    monkeypatch.setattr(tray.sys, "frozen", True, raising=False)
+    desktop = tmp_path / ("recharge-ai-task" + suffix)
+    desktop.touch()
+    cli = tmp_path / ("recharge-ai-task-cli" + suffix)
+    cli.touch()
+    monkeypatch.setattr(tray.sys, "executable", str(desktop))
+    assert tray._resolve_cli_exe() == [str(cli)]

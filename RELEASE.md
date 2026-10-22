@@ -38,11 +38,14 @@ powershell -ExecutionPolicy Bypass -File scripts\package_release.ps1
 
 | File | Purpose |
 |------|---------|
-| `dist\recharge-ai-task.exe` | CLI wrapper |
-| `dist\recharge-ai-task-tray.exe` | Tray app (no console) |
+| `dist\recharge-ai-task-cli.exe` | CLI wrapper |
+| `dist\recharge-ai-task.exe` | Combined desktop app (tray on Windows, no console) |
 | `dist\recharge-ai-task-windows-x86_64.zip` | **Upload to GitHub Release** |
 
-> Both `.exe` must stay in the **same folder** for the tray to work.
+> Keep both `.exe` in the same folder for CLI/tray integration. The desktop
+> executable starts independently. A small `recharge-ai-task-tray.cmd` launcher
+> preserves the previous tray command; `recharge-ai-task-gui.cmd` preserves
+> the old GUI command.
 
 ---
 
@@ -55,15 +58,15 @@ sudo apt install -y python3 python3-pip python3-venv
 pip install "recharge-ai-task[tray,dev]"
 bash scripts/build_linux.sh
 bash scripts/package_release.sh
-chmod +x dist/recharge-ai-task dist/recharge-ai-task-tray
+chmod +x dist/recharge-ai-task-cli dist/recharge-ai-task
 ```
 
 **Output:**
 
 | File | Purpose |
 |------|---------|
-| `dist/recharge-ai-task` | CLI wrapper |
-| `dist/recharge-ai-task-tray` | Tray app |
+| `dist/recharge-ai-task-cli` | CLI wrapper |
+| `dist/recharge-ai-task` | Combined dashboard and tray |
 | `dist/recharge-ai-task-linux-x86_64.tar.gz` | **Upload to GitHub Release** |
 
 Linux desktop mode users also need: `sudo apt install xdotool` (X11).
@@ -78,8 +81,8 @@ Linux desktop mode users also need: `sudo apt install xdotool` (X11).
 
 ```powershell
 cd dist
-.\recharge-ai-task.exe quota
-.\recharge-ai-task-tray.exe
+.\recharge-ai-task-cli.exe quota
+.\recharge-ai-task.exe
 # Tray → Show Quota / Start Codex (Goal)
 ```
 
@@ -87,11 +90,18 @@ cd dist
 
 ```bash
 cd dist
-./recharge-ai-task quota
-./recharge-ai-task-tray
+./recharge-ai-task-cli quota
+./recharge-ai-task          # Dashboard and tray
+./recharge-ai-task-cli tray     # Start only the tray
+./recharge-ai-task --tray   # Same, without requiring the CLI
 ```
 
-Requires Codex CLI installed and logged in on the test machine.
+The Linux archive contains two binaries (`recharge-ai-task` for the desktop
+and `recharge-ai-task-cli` for terminal commands) plus small compatibility
+launchers named `recharge-ai-task-gui` and `recharge-ai-task-tray`. Check that tray-only launch leaves the dashboard closed,
+a GUI launch reuses the same tray, and closing the dashboard leaves its icon
+running. The desktop binary must also launch when copied alone to another folder.
+Codex actions require Codex CLI installed and logged in on the test machine.
 
 ---
 
@@ -136,7 +146,7 @@ gh release create v1.1.0 \
 
 1. Download `recharge-ai-task-windows-x86_64.zip`
 2. Extract to e.g. `C:\Tools\recharge-ai-task\`
-3. Double-click `recharge-ai-task-tray.exe`
+3. Double-click `recharge-ai-task.exe`
 4. Right-click tray icon → Start Codex (Goal)
 5. Prerequisite: [Codex CLI](https://github.com/openai/codex) installed & signed in
 
@@ -144,8 +154,8 @@ gh release create v1.1.0 \
 
 ```bash
 tar -xzf recharge-ai-task-linux-x86_64.tar.gz -C ~/recharge-ai-task
-chmod +x ~/recharge-ai-task/recharge-ai-task ~/recharge-ai-task/recharge-ai-task-tray
-~/recharge-ai-task/recharge-ai-task-tray
+chmod +x ~/recharge-ai-task/recharge-ai-task-cli ~/recharge-ai-task/recharge-ai-task
+~/recharge-ai-task/recharge-ai-task
 ```
 
 ---
@@ -158,4 +168,4 @@ python -m build
 twine upload dist/recharge_ai_task-*.tar.gz dist/recharge_ai_task-*.whl
 ```
 
-Users then: `pip install "recharge-ai-task[all]"` + `recharge-ai-task configure`
+Users then: `pip install "recharge-ai-task[all]"` + `recharge-ai-task-cli configure`

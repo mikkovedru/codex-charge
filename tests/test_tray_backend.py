@@ -23,7 +23,7 @@ def test_backend_override(monkeypatch):
 def test_terminal_arguments(monkeypatch):
     monkeypatch.setattr(tray.sys, "platform", "linux")
     monkeypatch.setattr(tray.shutil, "which", lambda name: "/usr/bin/xterm" if name == "xterm" else None)
-    assert tray._console_command(["recharge-ai-task", "configure"]) == ["/usr/bin/xterm", "-e", "recharge-ai-task", "configure"]
+    assert tray._console_command(["recharge-ai-task-cli", "configure"]) == ["/usr/bin/xterm", "-e", "recharge-ai-task-cli", "configure"]
 
 
 def test_autostart_checkbox(monkeypatch):

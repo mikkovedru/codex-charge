@@ -43,7 +43,7 @@ def _setup_logging() -> None:
 
 def _resolve_cli_exe() -> list[str]:
     if getattr(sys, "frozen", False):
-        name = "recharge-ai-task.exe" if sys.platform == "win32" else "recharge-ai-task"
+        name = "recharge-ai-task-cli.exe" if sys.platform == "win32" else "recharge-ai-task-cli"
         cli = Path(sys.executable).with_name(name)
         if cli.exists():
             return [str(cli)]
@@ -429,15 +429,24 @@ class TrayApp:
                 controller.close()
 
 
-def main() -> int:
-    if sys.argv[1:] == ["--resume-goal-ui"]:
+def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv == ["--resume-goal-ui"]:
         from .desktop_goal_ui import main as goal_ui
         return goal_ui()
     if sys.platform not in {"win32", "linux"}:
         sys.stderr.write("recharge-ai-task tray supports Windows and Linux only.\n")
         return 1
-    show_gui = sys.argv[1:] in (["--targets"], ["--settings"])
-    settings = sys.argv[1:] == ["--settings"]
+    import argparse
+    parser = argparse.ArgumentParser(prog="recharge-ai-task-tray", description="Start in the tray; run recharge-ai-task for the dashboard")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--targets", action="store_true", help="Open the dashboard")
+    mode.add_argument("--settings", action="store_true", help="Open dashboard settings")
+    mode.add_argument("--tray", action="store_true", help="Start only the tray (default)")
+    parser.add_argument("--autostart", action="store_true", help="Mark this as a login launch")
+    options = parser.parse_args(argv)
+    show_gui = options.targets or options.settings
+    settings = options.settings
     command = ("open-settings" if settings else "open-gui") if show_gui else "status"
     if sys.platform == "linux":
         from .tray_control import request
@@ -450,7 +459,7 @@ def main() -> int:
             sys.stderr.write(f"Could not open the running tray: {exc}. Restart the tray to update it.\n")
             return 1
     try:
-        TrayApp(launched_at_startup="--autostart" in sys.argv[1:]).run(show_gui=show_gui, settings=settings)
+        TrayApp(launched_at_startup=options.autostart).run(show_gui=show_gui, settings=settings)
     except (RuntimeError, OSError) as exc:
         if sys.platform == "linux" and (str(exc) == "Another tray is already running"
                 or isinstance(exc, OSError) and exc.errno == errno.EADDRINUSE):

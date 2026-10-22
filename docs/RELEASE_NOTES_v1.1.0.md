@@ -10,7 +10,9 @@
 **License:** MIT
 
 These notes describe a historical release. Current builds use English only;
-see the [README](../README.md) for current setup.
+see the [README](../README.md) for current setup. Current desktop builds combine
+the dashboard and tray in `recharge-ai-task`; `--tray` starts without opening
+the dashboard. The old tray command is a compatibility script.
 
 ---
 
@@ -33,10 +35,10 @@ see the [README](../README.md) for current setup.
 ```bash
 pip install "recharge-ai-task[all]"   # Windows
 pip install "recharge-ai-task[tray]"  # Linux
-recharge-ai-task configure
-recharge-ai-task --goal               # CLI
-recharge-ai-task watch                # Desktop app
-recharge-ai-task-tray                 # Tray
+recharge-ai-task-cli configure
+recharge-ai-task-cli --goal               # CLI
+recharge-ai-task-cli watch                # Desktop app
+recharge-ai-task --tray               # Tray
 ```
 
 ### Downloads (x86_64)
@@ -46,7 +48,7 @@ recharge-ai-task-tray                 # Tray
 | Windows | `recharge-ai-task-windows-x86_64.zip` |
 | Ubuntu | `recharge-ai-task-linux-x86_64.tar.gz` |
 
-Each archive contains **two binaries** — place them in the same folder, then run `recharge-ai-task-tray`.
+Each archive contains **two binaries** — place them in the same folder, then run `recharge-ai-task`.
 
 ### Requirements
 

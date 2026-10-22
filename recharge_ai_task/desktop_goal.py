@@ -32,10 +32,8 @@ def ui_lock():
 
 def activate(target, expected, desktop):
     if getattr(sys, "frozen", False):
-        companion = Path(sys.executable).resolve().with_name("recharge-ai-task-tray")
-        if not companion.is_file():
-            raise RuntimeError("Native Goal controls require the companion recharge-ai-task-tray executable")
-        command = [str(companion), "--resume-goal-ui"]
+        from .desktop_launch import desktop_command
+        command = [*desktop_command(), "--resume-goal-ui"]
     else:
         command = [sys.executable, "-m", "recharge_ai_task.desktop_goal_ui"]
     pid, uid, _gid = struct.unpack("3i", desktop.socket.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))

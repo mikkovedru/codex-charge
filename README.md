@@ -10,28 +10,31 @@
 
 > Auto-continue Codex after 5h/7d quota resets — CLI PTY wrapper + ChatGPT Codex desktop watch, MIT.
 
+The primary command, `recharge-ai-task`, opens the desktop app. Use
+`recharge-ai-task-cli` for terminal operation.
+
 ### Usage at a glance
 
 **CLI setup**
 
 ```bash
-recharge-ai-task configure          # choose mode (cli/desktop) and defaults
+recharge-ai-task-cli configure          # choose mode (cli/desktop) and defaults
 ```
 
-**For the Linux GUI, run `recharge-ai-task gui` and use Settings directly.**
+**For the Linux GUI, run `recharge-ai-task` and use Settings directly.**
 
 **Then pick your workflow:**
 
 | Scenario | What to run | Notes |
 |-----------------|------------------------|--------------|
-| **CLI + Goal mode** | `recharge-ai-task --goal` | Wraps `codex` in terminal; first resume sends `/goal resume` |
-| **CLI + normal** | `recharge-ai-task` | Auto-sends `Continue` after reset |
-| **CLI + task args** | `recharge-ai-task --goal -- exec "your task"` | Pass args to codex after `--` |
-| **Linux graphical dashboard** | `recharge-ai-task gui` or `recharge-ai-task-gui` | Select recipients, view quota, change settings, start/stop Desktop watch |
-| **ChatGPT Codex desktop app** | `recharge-ai-task watch` | Open Codex and save recipients in the GUI first |
-| **System tray (easiest)** | `recharge-ai-task-tray` | Right-click tray icon → Start / Stop / Quota |
-| **Check quota only** | `recharge-ai-task quota` | Shows short/long window usage |
-| **No Python (Release zip)** | Run `recharge-ai-task-tray.exe` (Win) or `recharge-ai-task-tray` (Linux) | Keep release binaries in the **same folder** (three on Linux, two on Windows); still need Codex CLI installed & logged in |
+| **CLI + Goal mode** | `recharge-ai-task-cli --goal` | Wraps `codex` in terminal; first resume sends `/goal resume` |
+| **CLI + normal** | `recharge-ai-task-cli` | Auto-sends `Continue` after reset |
+| **CLI + task args** | `recharge-ai-task-cli --goal -- exec "your task"` | Pass args to codex after `--` |
+| **Linux graphical dashboard** | `recharge-ai-task` | Select recipients, view quota, change settings, start/stop Desktop watch |
+| **ChatGPT Codex desktop app** | `recharge-ai-task-cli watch` | Open Codex and save recipients in the GUI first |
+| **Start directly in tray** | `recharge-ai-task --tray` or `recharge-ai-task-cli tray` | Starts without opening the dashboard or starting monitoring |
+| **Check quota only** | `recharge-ai-task-cli quota` | Shows short/long window usage |
+| **No Python (Release zip)** | Run `recharge-ai-task.exe` (Win) or `recharge-ai-task` (Linux) | Two binaries: CLI and combined desktop app. Keep them together for CLI integration; Codex CLI must be installed and signed in |
 
 **Prerequisites:** Install [Codex CLI](https://github.com/openai/codex) and sign in with ChatGPT. Linux desktop mode also needs `sudo apt install xdotool` (X11). Native Goal signals use Codex's Resume goal control and require accessibility plus a clipboard manager (included in Mint Cinnamon). Source installs also need `python3-pyatspi`.
 
@@ -89,7 +92,7 @@ When quota is exhausted, Recharge AI-task waits for recovery and the grace perio
 
 ```powershell
 pip install "recharge-ai-task[all]"
-recharge-ai-task configure
+recharge-ai-task-cli configure
 ```
 
 **Ubuntu / Debian (tray + desktop):**
@@ -97,22 +100,22 @@ recharge-ai-task configure
 ```bash
 sudo apt install xdotool    # required for desktop mode on X11
 pip install "recharge-ai-task[tray]"
-recharge-ai-task configure
+recharge-ai-task-cli configure
 ```
 
 **CLI only (no tray):**
 
 ```bash
 pip install recharge-ai-task
-recharge-ai-task configure --mode cli
+recharge-ai-task-cli configure --mode cli
 ```
 
 #### 2. First-time setup (mode and defaults)
 
 ```bash
-recharge-ai-task configure
+recharge-ai-task-cli configure
 # non-interactive example:
-recharge-ai-task configure --mode desktop --goal
+recharge-ai-task-cli configure --mode desktop --goal
 ```
 
 On first run in an interactive terminal, the setup wizard starts automatically if no config exists.
@@ -133,19 +136,21 @@ Config file: `~/.recharge-ai-task/config.json`
 
 ```bash
 # CLI mode (default when mode=cli)
-recharge-ai-task --goal
-recharge-ai-task --goal -- exec "your long task"
+recharge-ai-task-cli --goal
+recharge-ai-task-cli --goal -- exec "your long task"
 
 # Linux GUI: choose and save recipients, then start Desktop watch
-recharge-ai-task gui
+recharge-ai-task
 # Terminal watcher using the saved recipients
-recharge-ai-task watch
+recharge-ai-task-cli watch
 
 # Check quota
-recharge-ai-task quota
+recharge-ai-task-cli quota
 
-# System tray (Windows / Linux)
-recharge-ai-task-tray
+# Start only the system tray (Windows / Linux)
+recharge-ai-task --tray
+# Equivalent command through the CLI:
+recharge-ai-task-cli tray
 ```
 
 ### Desktop app support
@@ -166,8 +171,8 @@ matching has been replaced by explicit recipients.
 
 | Method | Best for | How |
 |--------|----------|-----|
-| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/mikkovedru/recharge-ai-task/releases) zip, run `recharge-ai-task-tray` |
-| **Pre-built binary** | Users without Python | Keep release executables together; Linux also includes `recharge-ai-task-gui` |
+| **Tray app** | Non-technical users | Download [GitHub Release](https://github.com/mikkovedru/recharge-ai-task/releases) zip, run `recharge-ai-task` |
+| **Pre-built binary** | Users without Python | CLI plus one combined GUI/tray executable; no separate GUI runtime |
 | **pip install** | Developers | `pip install "recharge-ai-task[all]"` |
 
 > End users still need **Codex CLI installed and signed in** with a ChatGPT account. This tool only handles auto-continue after quota resets.
@@ -209,7 +214,7 @@ under `build/`. Finished executables are written to `dist/`.
 ```powershell
 pip install "recharge-ai-task[all,dev]"
 powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
-# → dist/recharge-ai-task.exe, dist/recharge-ai-task-tray.exe
+# → dist/recharge-ai-task-cli.exe, dist/recharge-ai-task.exe
 ```
 
 **Ubuntu:**
@@ -217,10 +222,14 @@ powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
 ```bash
 pip install "recharge-ai-task[tray,dev]"
 bash scripts/build_linux.sh
-# → dist/recharge-ai-task, dist/recharge-ai-task-tray
+# → dist/recharge-ai-task-cli, dist/recharge-ai-task
 ```
 
-Copy **both** binaries into the same folder before using the tray.
+The desktop executable runs independently for the GUI and tray. Keep the CLI
+beside it to use CLI actions from the tray and to open the desktop from the CLI.
+Linux includes small compatibility scripts named `recharge-ai-task-gui` and
+`recharge-ai-task-tray`; Windows includes matching `.cmd` launchers. Neither
+contains another bundled runtime.
 
 **GitHub Release** (suggested attachments):
 
@@ -267,7 +276,7 @@ Custom prompts (including non-English text) and recipient choices are preserved.
 Yes — use `desktop` mode or tray **Start Desktop Watch**. It uses the same quota API as CLI, not Electron hooks.
 
 **Does it work with Cursor / VS Code?**  
-It wraps **Codex CLI** in a terminal. IDE extensions are out of scope; run `recharge-ai-task` in a terminal instead.
+It wraps **Codex CLI** in a terminal. IDE extensions are out of scope; run `recharge-ai-task-cli` in a terminal instead.
 
 **What happens at quota reset?**  
 Wait until `resets_at` from the official API (or parsed terminal message, whichever is later), plus 60 seconds grace, then send `Continue` or `/goal resume`.
@@ -328,8 +337,8 @@ See also: [CONTRIBUTING.md](CONTRIBUTING.md) · [RELEASE.md](RELEASE.md) · [OPE
 When a limit is hit (CLI mode), stderr shows:
 
 ```text
-[recharge-ai-task] limit detected ('4 hours 12 minutes'), source=quota API, will send 'Continue' at 2026-07-13 04:01:00
-[recharge-ai-task] auto-continue sent
+[recharge-ai-task-cli] limit detected ('4 hours 12 minutes'), source=quota API, will send 'Continue' at 2026-07-13 04:01:00
+[recharge-ai-task-cli] auto-continue sent
 ```
 
 Log files: `~/.recharge-ai-task/tray.log`, `~/.recharge-ai-task/wrapper.log`
@@ -339,7 +348,8 @@ Log files: `~/.recharge-ai-task/tray.log`, `~/.recharge-ai-task/wrapper.log`
 | Field | Value |
 |-------|-------|
 | **Repository** | [Recharge AI-task source](https://github.com/mikkovedru/recharge-ai-task) |
-| **CLI / package name** | `recharge-ai-task` (pip install name) |
+| **GUI / package name** | `recharge-ai-task` (also the pip install name) |
+| **CLI command** | `recharge-ai-task-cli` |
 | **Description** | Auto-continue Codex CLI & ChatGPT Codex desktop app after 5h/7d quota resets — Windows & Ubuntu x86_64, MIT |
 | **License** | MIT |
 | **Topics** | `codex`, `openai`, `chatgpt`, `automation`, `quota`, `rate-limit`, `cli`, `python`, `windows`, `linux`, `tray-app` |
@@ -354,9 +364,10 @@ MIT — see [LICENSE](LICENSE).
 
 ## Project identity and upgrades
 
-The application is **Recharge AI-task**. Its package and commands use
-`recharge-ai-task`, and the Python package is `recharge_ai_task`.
-Run `recharge-ai-task gui` or `recharge-ai-task-gui` for the dashboard.
+The application is **Recharge AI-task**. Its package and desktop command use
+`recharge-ai-task`; terminal commands use `recharge-ai-task-cli`. The Python
+package is `recharge_ai_task`.
+Run `recharge-ai-task` for the dashboard.
 
 Settings now live in `~/.recharge-ai-task/config.json`. On the first default
 launch, existing settings from the previous name are copied byte for byte;
@@ -383,11 +394,33 @@ sudo apt install python3-venv python3-gi python3-cairo python3-gi-cairo gir1.2-g
 /usr/bin/python3 -m venv --system-site-packages .venv
 .venv/bin/python -m pip install -e ".[tray,dev]"
 PYTHON=.venv/bin/python bash scripts/build_linux.sh
-./dist/recharge-ai-task-tray
+./dist/recharge-ai-task --tray
 ```
 
 Alternatively, run from source with `bash scripts/run_tray.sh`. The launcher works from any directory. Use `RECHARGE_AI_TASK_CONFIG_DIR` for isolated settings during checks; live quota tests require `RECHARGE_AI_TASK_LIVE_TESTS=1`. `PYSTRAY_BACKEND` can explicitly override the Cinnamon backend selection.
 
+
+## Combined dashboard and tray
+
+`recharge-ai-task` contains the dashboard and tray in one executable.
+On Linux, normal launch opens the dashboard and starts its tray icon. To start
+with only the icon, run either command:
+
+```bash
+recharge-ai-task --tray
+recharge-ai-task-cli tray
+```
+
+Starting the tray does not start quota monitoring or send any signals.
+If the app is already running, the tray command leaves the dashboard's current
+visibility unchanged. `recharge-ai-task` opens or restores its dashboard.
+Closing the dashboard keeps the tray and any active monitoring running.
+The old `recharge-ai-task-gui` and `recharge-ai-task-tray` commands remain
+compatibility launchers. CLI scripts must now use `recharge-ai-task-cli`;
+`recharge-ai-task` opens the graphical app. `python -m recharge_ai_task` also
+opens the graphical app; `python -m recharge_ai_task.cli` starts the CLI.
+On Windows, the combined desktop executable starts in the tray by default;
+the GTK dashboard remains Linux-only.
 
 ## Choose Codex signal recipients
 
@@ -399,16 +432,16 @@ owners. Chat targets address a stable ID; window targets use the chat and focuse
 input currently shown in that window.
 
 ```bash
-./dist/recharge-ai-task gui
-./dist/recharge-ai-task-gui
-./dist/recharge-ai-task targets --gui
-./dist/recharge-ai-task targets --json
-./dist/recharge-ai-task targets --select THREAD_ID_1 --select THREAD_ID_2
+./dist/recharge-ai-task
+./dist/recharge-ai-task-cli targets --gui
+./dist/recharge-ai-task-cli targets --json
+./dist/recharge-ai-task-cli targets --select THREAD_ID_1 --select THREAD_ID_2
 ```
 
-After installing the Python package, use `recharge-ai-task gui` or `recharge-ai-task-gui`.
-For a release archive, keep all three executables together. `recharge-ai-task --help`
-lists both GUI commands. GUI launch commands also start the tray, or reuse the
+After installing the Python package, use `recharge-ai-task`.
+For a release archive, there are two binaries: CLI and combined desktop app.
+`recharge-ai-task --help` lists desktop options including `--tray`;
+`recharge-ai-task-cli --help` lists terminal commands. GUI launch commands also start the tray, or reuse the
 running tray and bring its dashboard forward. Closing the window keeps the tray
 and its watch available. Double-click the tray icon to hide the open dashboard
 to the tray or restore it, preserving the current view. Right-click for the tray menu. Use **Exit** in that menu to quit the application.

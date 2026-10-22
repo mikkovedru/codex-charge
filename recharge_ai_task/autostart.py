@@ -16,8 +16,8 @@ _DESKTOP_NAME = "recharge-ai-task-tray.desktop"
 
 def _tray_command() -> str:
     if getattr(sys, "frozen", False):
-        return f'"{Path(sys.executable).resolve()}" --autostart'
-    return f'"{sys.executable}" -m recharge_ai_task.tray --autostart'
+        return f'"{Path(sys.executable).resolve()}" --tray --autostart'
+    return f'"{sys.executable}" -m recharge_ai_task.gui --tray --autostart'
 
 
 def _windows_startup_dir() -> Path:

@@ -54,9 +54,15 @@ routing currently requires the Linux desktop's Unix socket.
 
 ## User flow
 
-Open **Open Recharge AI-task…** in the tray, or run `recharge-ai-task gui`, `recharge-ai-task-gui`, or `recharge-ai-task targets --gui`.
-The root `recharge-ai-task --help` lists both GUI command forms. A Linux release
-contains the CLI, tray, and dedicated GUI launcher; keep them together.
+Open **Open Recharge AI-task…** in the tray, or run `recharge-ai-task` or `recharge-ai-task-cli targets --gui`.
+`recharge-ai-task --help` lists desktop options including `--tray`.
+`recharge-ai-task-cli --help` lists terminal commands, including `gui` and `tray`. Releases
+contain the CLI and a combined desktop executable, `recharge-ai-task`.
+Linux keeps `recharge-ai-task-gui` and `recharge-ai-task-tray` as small
+compatibility launchers.
+Run `recharge-ai-task --tray` or `recharge-ai-task-cli tray` to start with only
+the tray icon. This does not start monitoring or send any signals; if already
+running, it leaves the dashboard visibility unchanged.
 All GUI launch commands start the tray too. Further launches reuse the same tray
 and present its existing window, preserving the current view. Closing the window
 keeps the tray and watch running. Double-click the icon to hide the visible
@@ -165,7 +171,7 @@ with their age and the error. Quota requests time out if Codex stops responding.
 **Run at login** reports the operating system's startup registration; **This tray
 started at login** reports whether this session came from the startup entry.
 The entry launches the tray, without automatically starting Desktop watch.
-Startup entries include `--autostart` so future launches can identify their
+Startup entries include `--tray --autostart` so future launches can identify their
 origin; enabled older entries are migrated when the updated tray starts.
 
 **Settings…** opens a GTK editor for default mode, Codex CLI path and
@@ -183,15 +189,15 @@ On Linux, the picker and tray communicate through a private Recharge AI-task con
 socket in the configuration directory. Only same-user clients are accepted,
 the socket is mode `0600`, and a second tray cannot replace an active socket.
 The dashboard controls a watch started by the tray; a separately launched
-`recharge-ai-task watch` process is managed in its own terminal.
+`recharge-ai-task-cli watch` process is managed in its own terminal.
 
 CLI examples:
 
 ```bash
-recharge-ai-task targets --json
-recharge-ai-task targets --select THREAD_ID_1 --select THREAD_ID_2
-recharge-ai-task targets --clear
-recharge-ai-task watch
+recharge-ai-task-cli targets --json
+recharge-ai-task-cli targets --select THREAD_ID_1 --select THREAD_ID_2
+recharge-ai-task-cli targets --clear
+recharge-ai-task-cli watch
 ```
 
 Use the full `key` from JSON output when an ID is ambiguous across profiles.

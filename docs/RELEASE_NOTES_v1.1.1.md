@@ -10,7 +10,9 @@
 **License:** MIT
 
 These notes describe a historical release. Current builds use English only;
-see the [README](../README.md) for current setup.
+see the [README](../README.md) for current setup. Current desktop builds combine
+the dashboard and tray in `recharge-ai-task`; `--tray` starts without opening
+the dashboard. The old tray command is a compatibility script.
 
 ---
 
@@ -29,13 +31,13 @@ see the [README](../README.md) for current setup.
 | Windows | `recharge-ai-task-windows-x86_64.zip` |
 | Ubuntu | `recharge-ai-task-linux-x86_64.tar.gz` |
 
-Each archive contains **two binaries** in one folder — run `recharge-ai-task-tray`.
+Each archive contains **two binaries** in one folder — run `recharge-ai-task`.
 
 ### Quick start
 
 1. Download the zip for your platform
 2. Extract to a folder (both binaries must stay together)
-3. Run `recharge-ai-task-tray` (or `recharge-ai-task-tray.exe` on Windows)
+3. Run `recharge-ai-task` (or `recharge-ai-task.exe` on Windows)
 4. Prerequisite: [Codex CLI](https://github.com/openai/codex) installed & signed in
 
 Full docs: [README](https://github.com/mikkovedru/recharge-ai-task#english)
