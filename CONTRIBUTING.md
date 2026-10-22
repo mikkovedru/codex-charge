@@ -12,6 +12,8 @@ Thank you for considering a contribution to Recharge AI-task.
 git clone https://github.com/mikkovedru/recharge-ai-task.git recharge-ai-task
 cd recharge-ai-task
 git remote add upstream https://github.com/Autumnpoem/codex-autocontinue.git
+git fetch upstream
+git branch --track upstream-sync upstream/main
 git config remote.pushDefault origin
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
@@ -20,8 +22,14 @@ pytest tests/ -v
 ```
 
 `origin` is the Recharge AI-task repository. `upstream` is the original
-Autumnpoem project, used to fetch upstream changes. Work on `master` and push
-to `origin`.
+Autumnpoem project, used to fetch upstream changes. `master` is the only primary
+branch in this repository; do not create a second `main` branch. Work on `master`
+and push to `origin`.
+
+`upstream-sync` tracks the original repository’s `upstream/main`. Fetch and
+update `upstream-sync` before integrating upstream work into `master`. The
+original repository keeps its own branch naming; its `main` is not a development
+branch in this fork.
 
 ## Platform notes
 

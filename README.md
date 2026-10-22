@@ -383,7 +383,10 @@ The GitHub repository is
 [Recharge AI-task](https://github.com/mikkovedru/recharge-ai-task).
 Use `origin` for this repository and `upstream` for
 [Autumnpoem's original project](https://github.com/Autumnpoem/codex-autocontinue).
-Development and releases use the `master` branch.
+Development and releases use `master` as the only primary branch. There is no
+local or `origin/main` branch. The local `upstream-sync` branch tracks the
+original project’s `upstream/main`; update it before integrating upstream work.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the remote and branch setup.
 
 ## Linux Mint Cinnamon
 

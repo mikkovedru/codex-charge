@@ -33,7 +33,9 @@ private settings or unrelated local files.
 ## Git remotes and publishing
 
 `origin` is the Recharge AI-task repository. `upstream` is the original
-Autumnpoem repository. Development uses `master`.
+Autumnpoem repository. `master` is the only primary branch; do not publish a
+duplicate `main` branch. The local `upstream-sync` branch tracks `upstream/main`
+for incoming changes from the original repository.
 For a checkout that already has both remotes:
 
 ```bash
